@@ -21,9 +21,9 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      needs_rebuild: ${{ steps.filter.outputs.any }}
+      any_changed: ${{ steps.filter.outputs.any }}
       shared_changed: ${{ steps.filter.outputs.shared }}
-      services_changed: ${{ steps.filter.outputs.any }}  # Wydzielenie mikroserwisów, które zostały zmienione.
+      microservices_changed: ${{ steps.filter.outputs.any }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,20 +47,25 @@ jobs:
   build-and-push:
     needs: detect-changes
     runs-on: ubuntu-latest
-    if: needs.detect-changes.outputs.needs_rebuild == 'true' || needs.detect-changes.outputs.shared_changed == 'true'
+    if: needs.detect-changes.outputs.any_changed == 'true' || needs.detect-changes.outputs.shared_changed == 'true'
     strategy:
       matrix:
         service:
           - name: gateway
             path: 'microservices/gateway'
+            rebuild: ${{ contains(needs.detect-changes.outputs.any_changed, 'server/microservices/gateway/**') }}
           - name: auth
             path: 'microservices/auth'
+            rebuild: ${{ contains(needs.detect-changes.outputs.any_changed, 'server/microservices/auth/auth-service/**') }}
           - name: registry
             path: 'microservices/registry'
+            rebuild: ${{ contains(needs.detect-changes.outputs.any_changed, 'server/microservices/registry/**') }}
           - name: stone-read
             path: 'microservices/stone-read'
+            rebuild: ${{ contains(needs.detect-changes.outputs.any_changed, 'server/microservices/stone-read/**') }}
           - name: stone-write
             path: 'microservices/stone-write'
+            rebuild: ${{ contains(needs.detect-changes.outputs.any_changed, 'server/microservices/stone-write/**') }}
 
     steps:
       - uses: actions/checkout@v4
@@ -103,4 +108,4 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.service.name }}:latest
           cache-to: type=inline
           provenance: false
-
+        if: ${{ matrix.rebuild == 'true' }}
