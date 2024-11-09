@@ -5,6 +5,7 @@ on:
       - daniel/compose-fix
     paths:
       - 'server/**'
+
 permissions:
   contents: read
   packages: write
@@ -43,29 +44,32 @@ jobs:
             shared: 
               - 'server/libraries/**'
               - 'server/microservices/auth/auth-feign/**'
+              
   build-and-push:
     needs: detect-changes
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
+        service:
           - name: gateway
             path: gateway
-            build: ${{ needs.detect-changes.outputs.gateway_changed == 'true' || needs.detect-changes.outputs.shared_changed == 'true' }}
           - name: auth
             path: auth/auth-service
-            build: ${{ needs.detect-changes.outputs.auth_changed == 'true' || needs.detect-changes.outputs.shared_changed == 'true' }}
           - name: registry
             path: registry
-            build: ${{ needs.detect-changes.outputs.registry_changed == 'true' || needs.detect-changes.outputs.shared_changed == 'true' }}
           - name: stone-read
             path: stone-read
-            build: ${{ needs.detect-changes.outputs.stone_read_changed == 'true' || needs.detect-changes.outputs.shared_changed == 'true' }}
           - name: stone-write
             path: stone-write
-            build: ${{ needs.detect-changes.outputs.stone_write_changed == 'true' || needs.detect-changes.outputs.shared_changed == 'true' }}
     
-    if: ${{ matrix.build }}
+    if: |
+      (matrix.service.name == 'gateway' && needs.detect-changes.outputs.gateway_changed == 'true') ||
+      (matrix.service.name == 'auth' && needs.detect-changes.outputs.auth_changed == 'true') ||
+      (matrix.service.name == 'registry' && needs.detect-changes.outputs.registry_changed == 'true') ||
+      (matrix.service.name == 'stone-read' && needs.detect-changes.outputs.stone_read_changed == 'true') ||
+      (matrix.service.name == 'stone-write' && needs.detect-changes.outputs.stone_write_changed == 'true') ||
+      needs.detect-changes.outputs.shared_changed == 'true'
+    
     steps:
       - uses: actions/checkout@v4
       
@@ -83,13 +87,13 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.name }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.service.name }}
           tags: |
             type=raw,value=latest
             type=sha,prefix=
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.description=Package for ${{ matrix.name }}
+            org.opencontainers.image.description=Package for ${{ matrix.service.name }}
             org.opencontainers.image.licenses=MIT
             org.opencontainers.image.version=${{ github.sha }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -98,11 +102,11 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./server
-          file: ./microservices/${{ matrix.path }}/Dockerfile
+          file: ./microservices/${{ matrix.service.path }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.name }}:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.service.name }}:latest
           cache-to: type=inline
           provenance: false
           
