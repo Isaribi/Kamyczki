@@ -21,9 +21,8 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      needs_rebuild: ${{ steps.filter.outputs.any }}
       shared_changed: ${{ steps.filter.outputs.shared }}
-      modified_services: ${{ steps.filter.outputs.modified_services }}
+      changed_services: ${{ steps.filter.outputs.changed_services }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,36 +33,42 @@ jobs:
         with:
           base: 'daniel/compose-fix'
           filters: |
-            any:
-              - 'server/microservices/gateway/**'
-              - 'server/microservices/auth/auth-service/**'
-              - 'server/microservices/registry/**'
-              - 'server/microservices/stone-read/**'
-              - 'server/microservices/stone-write/**'
+            changed_services:
+              gateway: 'server/microservices/gateway/**'
+              auth: 'server/microservices/auth/auth-service/**'
+              registry: 'server/microservices/registry/**'
+              stone_read: 'server/microservices/stone-read/**'
+              stone_write: 'server/microservices/stone-write/**'
             shared:
               - 'server/libraries/**'
               - 'server/microservices/auth/auth-feign/**'
 
       - name: Set modified services variable
         run: |
-          # Sprawdzamy, czy zmiana dotyczy bibliotek
+          MODIFIED_SERVICES=""
+          
           if [[ "${{ steps.filter.outputs.shared }}" == "true" ]]; then
-            # Jeśli zmiana dotyczy bibliotek, ustawiamy listę wszystkich mikroserwisów
-            echo "MODIFIED_SERVICES=gateway,auth,registry,stone-read,stone-write" >> $GITHUB_ENV
+            echo "Libraries changed, rebuilding all services."
+            MODIFIED_SERVICES="gateway,auth,registry,stone-read,stone-write"
           else
-            # Jeśli zmiana dotyczy tylko mikroserwisów, dodajemy je do listy
-            MODIFIED_SERVICES=$(echo '${{ steps.filter.outputs.any }}' | jq -r 'to_entries[] | select(.value == "true") | .key' | tr '\n' ',')
-            MODIFIED_SERVICES=${MODIFIED_SERVICES%,}  # Usuwamy przecinek na końcu
-            echo "MODIFIED_SERVICES=${MODIFIED_SERVICES}" >> $GITHUB_ENV
+            for service in gateway auth registry stone_read stone_write; do
+              if [[ "${{ steps.filter.outputs.changed_services.${service} }}" == "true" ]]; then
+                MODIFIED_SERVICES="${MODIFIED_SERVICES},${service}"
+              fi
+            done
           fi
+          
+          MODIFIED_SERVICES=${MODIFIED_SERVICES#,}
+
+          echo "MODIFIED_SERVICES=${MODIFIED_SERVICES}" >> $GITHUB_ENV
 
   build-and-push:
     needs: detect-changes
-    if: needs.detect-changes.outputs.needs_rebuild == 'true' || needs.detect-changes.outputs.shared_changed == 'true'
+    if: ${{ needs.detect-changes.outputs.changed_services != '' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        platform: [ ${{ env.MODIFIED_SERVICES }} ]
+        platform: ${{ fromJson(needs.detect-changes.outputs.MODIFIED_SERVICES) }}
 
     steps:
       - uses: actions/checkout@v4
