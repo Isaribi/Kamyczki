@@ -25,24 +25,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
       
       - name: Check changes
         id: changes
         run: |
-          SHARED_CHANGED=$(git diff --name-only HEAD^ HEAD | grep -E "server/libraries/|server/microservices/.+/.*-feign/" || true)
-          echo "shared_changed=${SHARED_CHANGED:+true}" >> $GITHUB_OUTPUT
+          PREVIOUS_COMMIT=$(git rev-parse HEAD^)
           
-          SERVICES=$(git diff --name-only HEAD^ HEAD | grep "server/microservices/" | cut -d'/' -f3 | sort -u | jq -R -s -c 'split("\n")[:-1]')
-          echo "matrix=$SERVICES" >> $GITHUB_OUTPUT
-
-          # Validate changes directly here
-          if [[ -n "$SHARED_CHANGED" || "$SERVICES" != "[]" ]]; then
+          SHARED_CHANGED=$(git diff --name-only $PREVIOUS_COMMIT HEAD | grep -E "server/libraries/|server/microservices/.+/.*-feign/" || true)
+          if [[ -n "$SHARED_CHANGED" ]]; then
+            echo "shared_changed=true" >> $GITHUB_OUTPUT
+            echo "matrix=[\"gateway\", \"auth\", \"registry\", \"stone-read\", \"stone-write\"]" >> $GITHUB_OUTPUT
             echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "Changes detected - workflow will continue"
+            echo "Shared libraries changed - will rebuild all services"
           else
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-            echo "No changes detected - workflow will be stopped"
+            SERVICES=$(git diff --name-only $PREVIOUS_COMMIT HEAD | grep "server/microservices/" | cut -d'/' -f3 | sort -u | jq -R -s -c 'split("\n")[:-1]')
+            echo "shared_changed=false" >> $GITHUB_OUTPUT
+            echo "matrix=$SERVICES" >> $GITHUB_OUTPUT
+            
+            if [[ "$SERVICES" != "[]" ]]; then
+              echo "has_changes=true" >> $GITHUB_OUTPUT
+              echo "Services changed: $SERVICES"
+            else
+              echo "has_changes=false" >> $GITHUB_OUTPUT
+              echo "No changes detected - workflow will be stopped"
+            fi
           fi
 
   build-and-push:
@@ -56,7 +63,7 @@ jobs:
     
     strategy:
       matrix:
-        platform: ${{ fromJSON(needs.check-changes.outputs.shared_changed == 'true' && '["gateway", "auth", "registry", "stone-read", "stone-write"]' || needs.check-changes.outputs.services_changed) }}
+        platform: ${{ fromJSON(needs.check-changes.outputs.matrix) }}
     
     steps:
       - uses: actions/checkout@v4
