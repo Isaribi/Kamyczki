@@ -21,7 +21,7 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      changed_platforms: ${{ steps.filter.outputs.changed_platforms }}
+      changed_platforms: ${{ steps.set-changed-platforms.outputs.changed_platforms }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -66,15 +66,15 @@ jobs:
             changed_platforms="${changed_platforms} stone-write"
           fi
           echo "changed_platforms=${changed_platforms}" >> $GITHUB_ENV
+          echo "::set-output name=changed_platforms::${changed_platforms}"
 
   build-and-push:
     needs: detect-changes
-    if: ${{ env.changed_platforms != '' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        platform: [${{ env.changed_platforms }}]
-    
+        platform: ${{ fromJson(needs.detect-changes.outputs.changed_platforms) }}
+
     steps:
       - uses: actions/checkout@v4
 
