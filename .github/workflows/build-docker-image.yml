@@ -13,13 +13,14 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  ALL_SERVICES: '["gateway", "auth", "registry", "stone-read", "stone-write"]'
 
 jobs:
   check-changes:
     runs-on: ubuntu-latest
     outputs:
       shared_changed: ${{ steps.changes.outputs.shared_changed }}
-      services_changed: ${{ steps.changes.outputs.matrix }}
+      services: ${{ steps.changes.outputs.services }}
       has_changes: ${{ steps.changes.outputs.has_changes }}
     
     steps:
@@ -33,15 +34,16 @@ jobs:
           PREVIOUS_COMMIT=$(git rev-parse HEAD^)
           
           SHARED_CHANGED=$(git diff --name-only $PREVIOUS_COMMIT HEAD | grep -E "server/libraries/|server/microservices/.+/.*-feign/" || true)
+          
           if [[ -n "$SHARED_CHANGED" ]]; then
             echo "shared_changed=true" >> $GITHUB_OUTPUT
-            echo "matrix=[\"gateway\", \"auth\", \"registry\", \"stone-read\", \"stone-write\"]" >> $GITHUB_OUTPUT
+            echo "services=$ALL_SERVICES" >> $GITHUB_OUTPUT
             echo "has_changes=true" >> $GITHUB_OUTPUT
             echo "Shared libraries changed - will rebuild all services"
           else
             SERVICES=$(git diff --name-only $PREVIOUS_COMMIT HEAD | grep "server/microservices/" | cut -d'/' -f3 | sort -u | jq -R -s -c 'split("\n")[:-1]')
             echo "shared_changed=false" >> $GITHUB_OUTPUT
-            echo "matrix=$SERVICES" >> $GITHUB_OUTPUT
+            echo "services=$SERVICES" >> $GITHUB_OUTPUT
             
             if [[ "$SERVICES" != "[]" ]]; then
               echo "has_changes=true" >> $GITHUB_OUTPUT
@@ -63,7 +65,7 @@ jobs:
     
     strategy:
       matrix:
-        platform: ${{ fromJSON(needs.check-changes.outputs.matrix) }}
+        platform: ${{ fromJson(needs.check-changes.outputs.services) }}
     
     steps:
       - uses: actions/checkout@v4
