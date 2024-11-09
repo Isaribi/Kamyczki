@@ -30,11 +30,11 @@ jobs:
       - name: Check for changes in services or shared libraries
         id: changes
         run: |
-          SHARED_CHANGED=$(git diff --name-only HEAD^ HEAD | grep -E "server/libraries/|server/microservices/.+/.*-feign/" || echo "none")
-          if [[ "$SHARED_CHANGED" != "none" ]]; then
-            echo "shared_changed=true" >> $GITHUB_OUTPUT
-          else
+          SHARED_CHANGED=$(git diff --name-only HEAD^ HEAD | grep -E "server/libraries/|server/microservices/.+/.*-feign/")
+          if [[ -z "$SHARED_CHANGED" ]]; then
             echo "shared_changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "shared_changed=true" >> $GITHUB_OUTPUT
           fi
           
           SERVICES=$(git diff --name-only HEAD^ HEAD | grep "server/microservices/" | cut -d'/' -f3 | sort -u | jq -R -s -c 'split("\n")[:-1]')
@@ -103,4 +103,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: No changes detected
-        run: echo "No changes detected in the services or libraries. Workflow will not proceed."
+        run: echo "No changes detected in the services or shared libraries. Workflow will not proceed."
