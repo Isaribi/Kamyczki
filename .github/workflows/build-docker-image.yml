@@ -23,6 +23,7 @@ jobs:
     outputs:
       needs_rebuild: ${{ steps.filter.outputs.any }}
       shared_changed: ${{ steps.filter.outputs.shared }}
+      services_changed: ${{ steps.filter.outputs.any }}  # Wydzielenie mikroserwisów, które zostały zmienione.
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,17 +46,21 @@ jobs:
 
   build-and-push:
     needs: detect-changes
-    if: needs.detect-changes.outputs.needs_rebuild == 'true' || needs.detect-changes.outputs.shared_changed == 'true'
     runs-on: ubuntu-latest
-
+    if: needs.detect-changes.outputs.needs_rebuild == 'true' || needs.detect-changes.outputs.shared_changed == 'true'
     strategy:
       matrix:
         service:
           - name: gateway
+            path: 'microservices/gateway'
           - name: auth
+            path: 'microservices/auth'
           - name: registry
+            path: 'microservices/registry'
           - name: stone-read
+            path: 'microservices/stone-read'
           - name: stone-write
+            path: 'microservices/stone-write'
 
     steps:
       - uses: actions/checkout@v4
@@ -91,10 +96,11 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./server
-          file: ./server/microservices/${{ matrix.service.name }}/Dockerfile
+          file: ./server/${{ matrix.service.path }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.service.name }}:latest
           cache-to: type=inline
           provenance: false
+
