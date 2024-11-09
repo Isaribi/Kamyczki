@@ -43,12 +43,6 @@ jobs:
               stone_read: 'server/microservices/stone-read/**'
               stone_write: 'server/microservices/stone-write/**'
 
-      - name: Debug: List changed files
-        run: |
-          echo "Changed services: ${{ steps.filter.outputs.changed_services }}"
-          echo "Files modified in commit:"
-          echo "${{ github.event.head_commit.modified }}"
-
   build-and-push:
     needs: detect-changes
     if: needs.detect-changes.outputs.changed_services != '""'
@@ -56,7 +50,7 @@ jobs:
     
     strategy:
       matrix:
-        platform: ${{ fromJson(needs.detect-changes.outputs.changed_services) }}
+        platform: ${{ fromJson(needs.detect-changes.outputs.changed_services) | keys() }}
     
     steps:
       - uses: actions/checkout@v4
