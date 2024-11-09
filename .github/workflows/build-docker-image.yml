@@ -1,12 +1,10 @@
 name: Create and publish Docker images
-
 on:
   push:
     branches:
       - daniel/compose-fix
     paths:
-      - 'server/microservices/**'
-      - 'server/libraries/**'
+      - 'server/**'
 
 permissions:
   contents: read
@@ -16,22 +14,24 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  SERVICES: '["gateway", "auth", "registry", "stone-read", "stone-write"]'
 
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      gateway: ${{ steps.filter.outputs.gateway }}
+      auth: ${{ steps.filter.outputs.auth }}
+      registry: ${{ steps.filter.outputs.registry }}
+      stone-read: ${{ steps.filter.outputs.stone-read }}
+      stone-write: ${{ steps.filter.outputs.stone-write }}
+      shared: ${{ steps.filter.outputs.shared }}
+      any_service_changed: ${{ steps.check-changes.outputs.any_changed }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
+      
       - uses: dorny/paths-filter@v2
         id: filter
         with:
-          base: 'daniel/compose-fix'
           filters: |
             gateway:
               - 'server/microservices/gateway/**'
@@ -46,39 +46,44 @@ jobs:
             shared:
               - 'server/libraries/**'
               - 'server/microservices/auth/auth-feign/**'
+              - 'server/microservices/**/feign/**'
 
-      - name: Set Matrix
-        id: set-matrix
+      - id: check-changes
         run: |
-          if [[ "${{ steps.filter.outputs.shared }}" == "true" ]]; then
-            echo "matrix={\"platform\":${{ env.SERVICES }}}" >> $GITHUB_OUTPUT
+          if [[ "${{ steps.filter.outputs.gateway }}" == "true" || \
+                "${{ steps.filter.outputs.auth }}" == "true" || \
+                "${{ steps.filter.outputs.registry }}" == "true" || \
+                "${{ steps.filter.outputs.stone-read }}" == "true" || \
+                "${{ steps.filter.outputs.stone-write }}" == "true" || \
+                "${{ steps.filter.outputs.shared }}" == "true" ]]; then
+            echo "any_changed=true" >> $GITHUB_OUTPUT
           else
-            CHANGES=""
-            FIRST=true
-            for service in $(echo '${{ env.SERVICES }}' | jq -r '.[]'); do
-              if [[ "${{ steps.filter.outputs[service] }}" == "true" ]]; then
-                if [ "$FIRST" = true ]; then
-                  CHANGES="\"$service\""
-                  FIRST=false
-                else
-                  CHANGES="$CHANGES,\"$service\""
-                fi
-              fi
-            done
-            if [ ! -z "$CHANGES" ]; then
-              echo "matrix={\"platform\":[$CHANGES]}" >> $GITHUB_OUTPUT
-            else
-              echo "matrix={\"platform\":[]}" >> $GITHUB_OUTPUT
-            fi
+            echo "any_changed=false" >> $GITHUB_OUTPUT
           fi
 
   build-and-push:
     needs: detect-changes
-    if: ${{ fromJson(needs.detect-changes.outputs.matrix).platform[0] != null }}
+    if: needs.detect-changes.outputs.any_service_changed == 'true'
     runs-on: ubuntu-latest
+    
     strategy:
-      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+      matrix:
+        service:
+          - name: gateway
+            path: gateway
+          - name: auth
+            path: auth
+          - name: registry
+            path: registry
+          - name: stone-read
+            path: stone-read
+          - name: stone-write
+            path: stone-write
 
+    if: >-
+      needs.detect-changes.outputs.shared == 'true' ||
+      needs.detect-changes.outputs[matrix.service.name] == 'true'
+    
     steps:
       - uses: actions/checkout@v4
 
@@ -96,13 +101,13 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.platform }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.service.name }}
           tags: |
             type=raw,value=latest
             type=sha,prefix=
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.description=Package for ${{ matrix.platform }}
+            org.opencontainers.image.description=Package for ${{ matrix.service.name }}
             org.opencontainers.image.licenses=MIT
             org.opencontainers.image.version=${{ github.sha }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -111,10 +116,10 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./server
-          file: ./server/microservices/${{ matrix.platform }}/Dockerfile
+          file: ./server/microservices/${{ matrix.service.path }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.platform }}:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.service.name }}:latest
           cache-to: type=inline
           provenance: false
