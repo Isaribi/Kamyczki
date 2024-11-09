@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       shared_changed: ${{ steps.filter.outputs.shared }}
-      changed_services: ${{ steps.filter.outputs.changed_services }}
+      changed_services: ${{ steps.filter.outputs.any }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,25 +36,26 @@ jobs:
             shared:
               - 'server/libraries/**'
               - 'server/microservices/auth/auth-feign/**'
-            changed_services:
-              gateway: 'server/microservices/gateway/**'
-              auth: 'server/microservices/auth/auth-service/**'
-              registry: 'server/microservices/registry/**'
-              stone_read: 'server/microservices/stone-read/**'
-              stone_write: 'server/microservices/stone-write/**'
+            any:
+              - 'server/microservices/gateway/**'
+              - 'server/microservices/auth/auth-service/**'
+              - 'server/microservices/registry/**'
+              - 'server/microservices/stone-read/**'
+              - 'server/microservices/stone-write/**'
 
+      # Debugging the output directly from the filter step
       - name: Output raw changed services
         run: |
-          echo "Raw changed services output: ${{ steps.filter.outputs.changed_services }}"
+          echo "Raw changed services output: ${{ steps.filter.outputs.any }}"
 
       - name: Set output for changed services
         id: set_changed_services
         run: |
-          if [[ "${{ steps.filter.outputs.changed_services }}" == "false" || -z "${{ steps.filter.outputs.changed_services }}" ]]; then
+          if [[ "${{ steps.filter.outputs.any }}" == "false" || -z "${{ steps.filter.outputs.any }}" ]]; then
             echo "::set-output name=changed_services::"
           else
             # Ensure valid JSON is parsed and converted into a list
-            CHANGED_SERVICES=$(echo "${{ steps.filter.outputs.changed_services }}" | jq -r 'to_entries | map(select(.value == true)) | map(.key) | join(",")')
+            CHANGED_SERVICES=$(echo "${{ steps.filter.outputs.any }}" | jq -r 'to_entries | map(select(.value == true)) | map(.key) | join(",")')
             echo "::set-output name=changed_services::$CHANGED_SERVICES"
             echo "Changed services: $CHANGED_SERVICES"
           fi
