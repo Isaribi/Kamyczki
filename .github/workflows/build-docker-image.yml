@@ -45,13 +45,13 @@ jobs:
 
       - name: Debug: List changed files
         run: |
-          echo "Files that were changed:"
-          echo "${{ steps.filter.outputs.changed_services }}"
+          echo "Changed services: ${{ steps.filter.outputs.changed_services }}"
+          echo "Files modified in commit:"
           echo "${{ github.event.head_commit.modified }}"
 
   build-and-push:
     needs: detect-changes
-    if: needs.detect-changes.outputs.changed_services != ''
+    if: needs.detect-changes.outputs.changed_services != '""'
     runs-on: ubuntu-latest
     
     strategy:
