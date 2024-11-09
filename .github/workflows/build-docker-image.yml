@@ -1,11 +1,9 @@
 name: Create and publish Docker images
+
 on:
   push:
     branches:
       - daniel/compose-fix
-    paths:
-      - 'server/microservices/**'
-      - 'server/libraries/**'
 
 permissions:
   contents: read
@@ -18,26 +16,44 @@ env:
   ALL_SERVICES: '["gateway", "auth", "registry", "stone-read", "stone-write"]'
 
 jobs:
-  determine-services:
+  check-changes:
     runs-on: ubuntu-latest
     outputs:
-      services: ${{ steps.set-services.outputs.services }}
+      shared_changed: ${{ steps.changes.outputs.shared_changed }}
+      services: ${{ steps.changes.outputs.services }}
+      has_changes: ${{ steps.changes.outputs.has_changes }}
     
     steps:
       - uses: actions/checkout@v4
       
-      - id: set-services
+      - name: Check changes
+        id: changes
         run: |
-          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "server/libraries/\|server/microservices/.*/.*-feign/"; then
+          PREVIOUS_COMMIT=$(git rev-parse HEAD^)
+          
+          SHARED_CHANGED=$(git diff --name-only $PREVIOUS_COMMIT HEAD | grep -E "server/libraries/|server/microservices/.+/.*-feign/" || true)
+          
+          if [[ -n "$SHARED_CHANGED" ]]; then
+            echo "shared_changed=true" >> $GITHUB_OUTPUT
             echo "services=$ALL_SERVICES" >> $GITHUB_OUTPUT
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "Shared libraries changed - will rebuild all services"
           else
-            SERVICES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep "server/microservices/" | cut -d'/' -f3 | sort -u | jq -R -s -c 'split("\n")[:-1]')
+            SERVICES=$(git diff --name-only $PREVIOUS_COMMIT HEAD | grep "server/microservices/" | cut -d'/' -f3 | sort -u | jq -R -s -c 'split("\n")[:-1]')
+            echo "shared_changed=false" >> $GITHUB_OUTPUT
             echo "services=$SERVICES" >> $GITHUB_OUTPUT
+            
+            if [[ "$SERVICES" != "[]" ]]; then
+              echo "has_changes=true" >> $GITHUB_OUTPUT
+              echo "Services changed: $SERVICES"
+            else
+              echo "has_changes=false" >> $GITHUB_OUTPUT
+              echo "No changes detected - workflow will be stopped"
+            fi
           fi
-
   build-and-push:
-    needs: determine-services
-    if: fromJson(needs.determine-services.outputs.services)[0] != null
+    needs: check-changes
+    if: needs.check-changes.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -46,7 +62,7 @@ jobs:
     
     strategy:
       matrix:
-        platform: ${{ fromJson(needs.determine-services.outputs.services) }}
+        platform: ${{ fromJson(needs.check-changes.outputs.services) }}
     
     steps:
       - uses: actions/checkout@v4
