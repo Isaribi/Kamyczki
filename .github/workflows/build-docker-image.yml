@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       shared_changed: ${{ steps.filter.outputs.shared }}
-      changed_services: ${{ steps.filter.outputs.changed_services }}
+      changed_services: ${{ steps.extract_changed_services.outputs.changed_services }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,14 +43,23 @@ jobs:
               stone_read: 'server/microservices/stone-read/**'
               stone_write: 'server/microservices/stone-write/**'
 
+      - name: Extract changed services
+        id: extract_changed_services
+        run: |
+          # Get the changed services by filtering out only those with 'true' values
+          CHANGED_SERVICES=$(echo "${{ steps.filter.outputs.changed_services }}" | jq -r 'to_entries | map(select(.value == true)) | map(.key) | join(",")')
+
+          echo "Changed services: $CHANGED_SERVICES"
+          echo "::set-output name=changed_services::$CHANGED_SERVICES"
+
   build-and-push:
     needs: detect-changes
-    if: needs.detect-changes.outputs.changed_services != '""'
+    if: needs.detect-changes.outputs.changed_services != ''
     runs-on: ubuntu-latest
     
     strategy:
       matrix:
-        platform: ${{ fromJson(needs.detect-changes.outputs.changed_services) | keys() }}
+        platform: ${{ fromJson(needs.detect-changes.outputs.changed_services) }}
     
     steps:
       - uses: actions/checkout@v4
