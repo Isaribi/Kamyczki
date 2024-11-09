@@ -13,7 +13,7 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-
+  
 jobs:
   check-changes:
     runs-on: ubuntu-latest
@@ -44,7 +44,7 @@ jobs:
             echo "changes_detected=true" >> $GITHUB_OUTPUT
           else
             echo "changes_detected=false" >> $GITHUB_OUTPUT
-          fi
+
   build-and-push:
     needs: check-changes
     if: ${{ needs.check-changes.outputs.changes_detected == 'true' }}
@@ -97,3 +97,10 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.platform }}:latest
           cache-to: type=inline
           provenance: false
+
+  no-changes:
+    if: ${{ needs.check-changes.outputs.changes_detected == 'false' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: No changes detected
+        run: echo "No changes detected in the services or libraries. Workflow will not proceed."
