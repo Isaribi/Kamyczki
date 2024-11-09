@@ -51,15 +51,23 @@ jobs:
             echo "Libraries changed, rebuilding all services."
             MODIFIED_SERVICES="gateway,auth,registry,stone-read,stone-write"
           else
-            for service in gateway auth registry stone_read stone_write; do
-              if [[ "${{ steps.filter.outputs.changed_services.${service} }}" == "true" ]]; then
-                MODIFIED_SERVICES="${MODIFIED_SERVICES},${service}"
-              fi
-            done
+            if [[ "${{ steps.filter.outputs.changed_services.gateway }}" == "true" ]]; then
+              MODIFIED_SERVICES="gateway"
+            fi
+            if [[ "${{ steps.filter.outputs.changed_services.auth }}" == "true" ]]; then
+              MODIFIED_SERVICES="${MODIFIED_SERVICES},auth"
+            fi
+            if [[ "${{ steps.filter.outputs.changed_services.registry }}" == "true" ]]; then
+              MODIFIED_SERVICES="${MODIFIED_SERVICES},registry"
+            fi
+            if [[ "${{ steps.filter.outputs.changed_services.stone_read }}" == "true" ]]; then
+              MODIFIED_SERVICES="${MODIFIED_SERVICES},stone-read"
+            fi
+            if [[ "${{ steps.filter.outputs.changed_services.stone_write }}" == "true" ]]; then
+              MODIFIED_SERVICES="${MODIFIED_SERVICES},stone-write"
+            fi
           fi
           
-          MODIFIED_SERVICES=${MODIFIED_SERVICES#,}
-
           echo "MODIFIED_SERVICES=${MODIFIED_SERVICES}" >> $GITHUB_ENV
 
   build-and-push:
