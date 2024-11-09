@@ -31,7 +31,7 @@ jobs:
       - uses: dorny/paths-filter@v2
         id: filter
         with:
-          base: 'HEAD^'
+          base: 'origin/daniel/compose-fix'
           filters: |
             any:
               - 'server/microservices/gateway/**'
