@@ -100,4 +100,4 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.service.name }}:latest
           cache-to: type=inline
           provenance: false
-        if: ${{ needs.detect-changes.outputs.microservices_changed == 'true' && contains(needs.detect-changes.outputs.microservices_changed, matrix.service.path) || needs.detect-changes.outputs.shared_changed == 'true' }}
+        if: ${{ needs.detect-changes.outputs.shared_changed == 'true' || contains(needs.detect-changes.outputs.microservices_changed, matrix.service.name) }}
