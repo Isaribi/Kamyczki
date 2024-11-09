@@ -46,11 +46,16 @@ jobs:
       - name: Extract changed services
         id: extract_changed_services
         run: |
-          # Get the changed services by filtering out only those with 'true' values
-          CHANGED_SERVICES=$(echo "${{ steps.filter.outputs.changed_services }}" | jq -r 'to_entries | map(select(.value == true)) | map(.key) | join(",")')
-
-          echo "Changed services: $CHANGED_SERVICES"
-          echo "::set-output name=changed_services::$CHANGED_SERVICES"
+          # Check if the output is a valid JSON object (non-empty and valid)
+          if [[ "${{ steps.filter.outputs.changed_services }}" == "false" || -z "${{ steps.filter.outputs.changed_services }}" ]]; then
+            echo "No services changed."
+            echo "::set-output name=changed_services::"
+          else
+            # If valid, filter the services with 'true' values
+            CHANGED_SERVICES=$(echo "${{ steps.filter.outputs.changed_services }}" | jq -r 'to_entries | map(select(.value == true)) | map(.key) | join(",")')
+            echo "Changed services: $CHANGED_SERVICES"
+            echo "::set-output name=changed_services::$CHANGED_SERVICES"
+          fi
 
   build-and-push:
     needs: detect-changes
