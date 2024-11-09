@@ -39,7 +39,7 @@ jobs:
               - 'server/microservices/registry/**'
               - 'server/microservices/stone-read/**'
               - 'server/microservices/stone-write/**'
-            shared: 
+            shared:
               - 'server/libraries/**'
               - 'server/microservices/auth/auth-feign/**'
 
@@ -47,23 +47,20 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.needs_rebuild == 'true' || needs.detect-changes.outputs.shared_changed == 'true'
     runs-on: ubuntu-latest
-    
+
     strategy:
       matrix:
         service:
           - name: gateway
-            path: gateway
-          - name: auth
-            path: auth
+          - name: auth-service
           - name: registry
-            path: registry
           - name: stone-read
-            path: stone-read
           - name: stone-write
-            path: stone-write
-    
+
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Log in to Registry
         uses: docker/login-action@v2
@@ -94,7 +91,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./server
-          file: ./server/microservices/${{ matrix.service.path }}/Dockerfile
+          file: ./server/microservices/${{ matrix.service.name }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
