@@ -30,8 +30,12 @@ jobs:
       - name: Check for changes in services or shared libraries
         id: changes
         run: |
-          SHARED_CHANGED=$(git diff --name-only HEAD^ HEAD | grep -E "server/libraries/|server/microservices/.+/.*-feign/" || true)
-          echo "shared_changed=${SHARED_CHANGED:+true}" >> $GITHUB_OUTPUT
+          SHARED_CHANGED=$(git diff --name-only HEAD^ HEAD | grep -E "server/libraries/|server/microservices/.+/.*-feign/" || echo "none")
+          if [[ "$SHARED_CHANGED" != "none" ]]; then
+            echo "shared_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "shared_changed=false" >> $GITHUB_OUTPUT
+          fi
           
           SERVICES=$(git diff --name-only HEAD^ HEAD | grep "server/microservices/" | cut -d'/' -f3 | sort -u | jq -R -s -c 'split("\n")[:-1]')
           echo "matrix=$SERVICES" >> $GITHUB_OUTPUT
@@ -40,7 +44,7 @@ jobs:
             echo "changes_detected=true" >> $GITHUB_OUTPUT
           else
             echo "changes_detected=false" >> $GITHUB_OUTPUT
-
+          fi
   build-and-push:
     needs: check-changes
     if: ${{ needs.check-changes.outputs.changes_detected == 'true' }}
