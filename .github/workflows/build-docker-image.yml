@@ -20,12 +20,12 @@ jobs:
     outputs:
       shared_changed: ${{ steps.changes.outputs.shared_changed }}
       services_changed: ${{ steps.changes.outputs.matrix }}
-      has_changes: ${{ steps.validate-changes.outputs.has_changes }}
+      has_changes: ${{ steps.changes.outputs.has_changes }}
     
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 2
       
       - name: Check changes
         id: changes
@@ -36,13 +36,8 @@ jobs:
           SERVICES=$(git diff --name-only HEAD^ HEAD | grep "server/microservices/" | cut -d'/' -f3 | sort -u | jq -R -s -c 'split("\n")[:-1]')
           echo "matrix=$SERVICES" >> $GITHUB_OUTPUT
 
-      - name: Validate changes
-        id: validate-changes
-        run: |
-          SHARED_CHANGED="${{ steps.changes.outputs.shared_changed }}"
-          SERVICES='${{ steps.changes.outputs.matrix }}'
-          
-          if [[ "$SHARED_CHANGED" == "true" || "$SERVICES" != "[]" ]]; then
+          # Validate changes directly here
+          if [[ -n "$SHARED_CHANGED" || "$SERVICES" != "[]" ]]; then
             echo "has_changes=true" >> $GITHUB_OUTPUT
             echo "Changes detected - workflow will continue"
           else
