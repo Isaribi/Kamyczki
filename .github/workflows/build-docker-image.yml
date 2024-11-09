@@ -53,7 +53,7 @@ jobs:
           - name: gateway
             path: gateway
           - name: auth
-            path: auth/auth-service
+            path: auth
           - name: registry
             path: registry
           - name: stone-read
