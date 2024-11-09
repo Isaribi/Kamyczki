@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       shared_changed: ${{ steps.filter.outputs.shared }}
-      changed_services: ${{ steps.extract_changed_services.outputs.changed_services }}
+      changed_services: ${{ steps.filter.outputs.changed_services }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,18 +43,20 @@ jobs:
               stone_read: 'server/microservices/stone-read/**'
               stone_write: 'server/microservices/stone-write/**'
 
-      - name: Extract changed services
-        id: extract_changed_services
+      - name: Output raw changed services
         run: |
-          # Check if the output is a valid JSON object (non-empty and valid)
+          echo "Raw changed services output: ${{ steps.filter.outputs.changed_services }}"
+
+      - name: Set output for changed services
+        id: set_changed_services
+        run: |
           if [[ "${{ steps.filter.outputs.changed_services }}" == "false" || -z "${{ steps.filter.outputs.changed_services }}" ]]; then
-            echo "No services changed."
             echo "::set-output name=changed_services::"
           else
-            # If valid, filter the services with 'true' values
+            # Ensure valid JSON is parsed and converted into a list
             CHANGED_SERVICES=$(echo "${{ steps.filter.outputs.changed_services }}" | jq -r 'to_entries | map(select(.value == true)) | map(.key) | join(",")')
-            echo "Changed services: $CHANGED_SERVICES"
             echo "::set-output name=changed_services::$CHANGED_SERVICES"
+            echo "Changed services: $CHANGED_SERVICES"
           fi
 
   build-and-push:
@@ -112,4 +114,4 @@ jobs:
     steps:
       - name: Output changed services
         run: |
-          echo "Changed services: ${{ needs.detect-changes.outputs.changed_services }}"
+          echo "Changed services (final output): ${{ needs.detect-changes.outputs.changed_services }}"
