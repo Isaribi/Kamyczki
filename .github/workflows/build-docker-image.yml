@@ -21,8 +21,9 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
+      needs_rebuild: ${{ steps.filter.outputs.any }}
       shared_changed: ${{ steps.filter.outputs.shared }}
-      changed_services: ${{ steps.filter.outputs.any }}
+      modified_services: ${{ steps.filter.outputs.modified_services }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,42 +34,37 @@ jobs:
         with:
           base: 'daniel/compose-fix'
           filters: |
-            shared:
-              - 'server/libraries/**'
-              - 'server/microservices/auth/auth-feign/**'
             any:
               - 'server/microservices/gateway/**'
               - 'server/microservices/auth/auth-service/**'
               - 'server/microservices/registry/**'
               - 'server/microservices/stone-read/**'
               - 'server/microservices/stone-write/**'
+            shared:
+              - 'server/libraries/**'
+              - 'server/microservices/auth/auth-feign/**'
 
-      # Debugging the output directly from the filter step
-      - name: Output raw changed services
+      - name: Set modified services variable
         run: |
-          echo "Raw changed services output: ${{ steps.filter.outputs.any }}"
-
-      - name: Set output for changed services
-        id: set_changed_services
-        run: |
-          if [[ "${{ steps.filter.outputs.any }}" == "false" || -z "${{ steps.filter.outputs.any }}" ]]; then
-            echo "::set-output name=changed_services::"
+          # Sprawdzamy, czy zmiana dotyczy bibliotek
+          if [[ "${{ steps.filter.outputs.shared }}" == "true" ]]; then
+            # Jeśli zmiana dotyczy bibliotek, ustawiamy listę wszystkich mikroserwisów
+            echo "MODIFIED_SERVICES=gateway,auth,registry,stone-read,stone-write" >> $GITHUB_ENV
           else
-            # Ensure valid JSON is parsed and converted into a list
-            CHANGED_SERVICES=$(echo "${{ steps.filter.outputs.any }}" | jq -r 'to_entries | map(select(.value == true)) | map(.key) | join(",")')
-            echo "::set-output name=changed_services::$CHANGED_SERVICES"
-            echo "Changed services: $CHANGED_SERVICES"
+            # Jeśli zmiana dotyczy tylko mikroserwisów, dodajemy je do listy
+            MODIFIED_SERVICES=$(echo '${{ steps.filter.outputs.any }}' | jq -r 'to_entries[] | select(.value == "true") | .key' | tr '\n' ',')
+            MODIFIED_SERVICES=${MODIFIED_SERVICES%,}  # Usuwamy przecinek na końcu
+            echo "MODIFIED_SERVICES=${MODIFIED_SERVICES}" >> $GITHUB_ENV
           fi
 
   build-and-push:
     needs: detect-changes
-    if: needs.detect-changes.outputs.changed_services != ''
+    if: needs.detect-changes.outputs.needs_rebuild == 'true' || needs.detect-changes.outputs.shared_changed == 'true'
     runs-on: ubuntu-latest
-    
     strategy:
       matrix:
-        platform: ${{ fromJson(needs.detect-changes.outputs.changed_services) }}
-    
+        platform: [ ${{ env.MODIFIED_SERVICES }} ]
+
     steps:
       - uses: actions/checkout@v4
 
@@ -108,11 +104,3 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.platform }}:latest
           cache-to: type=inline
           provenance: false
-
-  debug:
-    runs-on: ubuntu-latest
-    needs: detect-changes
-    steps:
-      - name: Output changed services
-        run: |
-          echo "Changed services (final output): ${{ needs.detect-changes.outputs.changed_services }}"
