@@ -16,12 +16,13 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  SERVICES: '["gateway", "auth", "registry", "stone-read", "stone-write"]'
 
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      changed_platforms: ${{ steps.set-changed-platforms.outputs.changed_platforms }}
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,33 +47,37 @@ jobs:
               - 'server/libraries/**'
               - 'server/microservices/auth/auth-feign/**'
 
-      - name: Set changed platforms
-        id: set-changed-platforms
+      - name: Set Matrix
+        id: set-matrix
         run: |
-          platforms=()
-
-          if [[ "${{ steps.filter.outputs.gateway }}" == "true" ]]; then platforms+=("gateway"); fi
-          if [[ "${{ steps.filter.outputs.auth }}" == "true" ]]; then platforms+=("auth"); fi
-          if [[ "${{ steps.filter.outputs.registry }}" == "true" ]]; then platforms+=("registry"); fi
-          if [[ "${{ steps.filter.outputs.stone-read }}" == "true" ]]; then platforms+=("stone-read"); fi
-          if [[ "${{ steps.filter.outputs.stone-write }}" == "true" ]]; then platforms+=("stone-write"); fi
           if [[ "${{ steps.filter.outputs.shared }}" == "true" ]]; then
-            platforms+=("gateway" "auth" "registry" "stone-read" "stone-write")
-          fi
-
-          if [ ${#platforms[@]} -gt 0 ]; then
-            echo "::set-output name=changed_platforms::${platforms[@]}"
+            echo "matrix={\"platform\":${{ env.SERVICES }}}" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=changed_platforms::none"
+            CHANGES=""
+            FIRST=true
+            for service in $(echo '${{ env.SERVICES }}' | jq -r '.[]'); do
+              if [[ "${{ steps.filter.outputs[service] }}" == "true" ]]; then
+                if [ "$FIRST" = true ]; then
+                  CHANGES="\"$service\""
+                  FIRST=false
+                else
+                  CHANGES="$CHANGES,\"$service\""
+                fi
+              fi
+            done
+            if [ ! -z "$CHANGES" ]; then
+              echo "matrix={\"platform\":[$CHANGES]}" >> $GITHUB_OUTPUT
+            else
+              echo "matrix={\"platform\":[]}" >> $GITHUB_OUTPUT
+            fi
           fi
 
   build-and-push:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.changed_platforms != 'none' }}
+    if: ${{ fromJson(needs.detect-changes.outputs.matrix).platform[0] != null }}
     runs-on: ubuntu-latest
     strategy:
-      matrix:
-        platform: ${{ fromJson(needs.detect-changes.outputs.changed_platforms) }}
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
 
     steps:
       - uses: actions/checkout@v4
