@@ -1,8 +1,12 @@
 name: Create and publish Docker images
+
 on:
   push:
     branches:
       - daniel/compose-fix
+    paths:
+      - 'server/microservices/**'
+      - 'server/libraries/**'
 
 permissions:
   contents: read
@@ -17,27 +21,20 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      gateway: ${{ steps.filter.outputs.gateway }}
-      auth: ${{ steps.filter.outputs.auth }}
-      registry: ${{ steps.filter.outputs.registry }}
-      stone_read: ${{ steps.filter.outputs.stone_read }}
-      stone_write: ${{ steps.filter.outputs.stone_write }}
-      shared: ${{ steps.filter.outputs.shared }}
+      needs_rebuild: ${{ steps.filter.outputs.any }}
+      shared_changed: ${{ steps.filter.outputs.shared }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: dorny/paths-filter@v2
         id: filter
         with:
           filters: |
-            gateway:
+            any:
               - 'server/microservices/gateway/**'
-            auth:
               - 'server/microservices/auth/auth-service/**'
-            registry:
               - 'server/microservices/registry/**'
-            stone_read:
               - 'server/microservices/stone-read/**'
-            stone_write:
               - 'server/microservices/stone-write/**'
             shared: 
               - 'server/libraries/**'
@@ -45,14 +42,9 @@ jobs:
 
   build-and-push:
     needs: detect-changes
-    if: |
-      needs.detect-changes.outputs.shared == 'true' ||
-      needs.detect-changes.outputs.gateway == 'true' ||
-      needs.detect-changes.outputs.auth == 'true' ||
-      needs.detect-changes.outputs.registry == 'true' ||
-      needs.detect-changes.outputs.stone_read == 'true' ||
-      needs.detect-changes.outputs.stone_write == 'true'
+    if: needs.detect-changes.outputs.needs_rebuild == 'true' || needs.detect-changes.outputs.shared_changed == 'true'
     runs-on: ubuntu-latest
+    
     strategy:
       matrix:
         service:
@@ -66,26 +58,20 @@ jobs:
             path: stone-read
           - name: stone-write
             path: stone-write
-    if: |
-      needs.detect-changes.outputs.shared == 'true' ||
-      (matrix.service.name == 'gateway' && needs.detect-changes.outputs.gateway == 'true') ||
-      (matrix.service.name == 'auth' && needs.detect-changes.outputs.auth == 'true') ||
-      (matrix.service.name == 'registry' && needs.detect-changes.outputs.registry == 'true') ||
-      (matrix.service.name == 'stone-read' && needs.detect-changes.outputs.stone_read == 'true') ||
-      (matrix.service.name == 'stone-write' && needs.detect-changes.outputs.stone_write == 'true')
+    
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Log in to Registry
         uses: docker/login-action@v2
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-        
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v4
@@ -100,12 +86,12 @@ jobs:
             org.opencontainers.image.licenses=MIT
             org.opencontainers.image.version=${{ github.sha }}
             org.opencontainers.image.revision=${{ github.sha }}
-            
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
           context: ./server
-          file: ./microservices/${{ matrix.service.path }}/Dockerfile
+          file: ./server/microservices/${{ matrix.service.path }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
