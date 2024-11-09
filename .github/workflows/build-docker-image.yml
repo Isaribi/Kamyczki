@@ -1,86 +1,114 @@
 name: Create and publish Docker images
 
 on:
- push:
-   branches:
-     - daniel/compose-fix
+  push:
+    branches:
+      - daniel/compose-fix
+    paths:
+      - 'server/**'
 
 permissions:
- contents: read
- packages: write
- id-token: write
+  contents: read
+  packages: write
+  id-token: write
 
 env:
- REGISTRY: ghcr.io
- IMAGE_NAME: ${{ github.repository }}
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
- check-changes:
-   runs-on: ubuntu-latest
-   outputs:
-     shared_changed: ${{ steps.changes.outputs.shared_changed }}
-     services_changed: ${{ steps.changes.outputs.matrix }}
-   
-   steps:
-     - uses: actions/checkout@v4
-       with:
-         fetch-depth: 2
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      needs_rebuild: ${{ steps.filter.outputs.any }}
+      shared_changed: ${{ steps.filter.outputs.shared }}
+    steps:
+      - uses: actions/checkout@v4
 
-     - name: Check changes
-       id: changes
-       run: |
-         SHARED_CHANGED=$(git diff --name-only HEAD^ HEAD | grep -E "server/libraries/|server/microservices/.+/.*-feign/" || true)
-         echo "shared_changed=${SHARED_CHANGED:+true}" >> $GITHUB_OUTPUT
-         SERVICES=$(git diff --name-only HEAD^ HEAD | grep "server/microservices/" | cut -d'/' -f3 | sort -u | jq -R -s -c 'split("\n")[:-1]')
-         echo "matrix=$SERVICES" >> $GITHUB_OUTPUT
- build-and-push:
-   needs: check-changes
-   runs-on: ubuntu-latest
-   permissions:
-     contents: read
-     packages: write
-     id-token: write
-   
-   strategy:
-     matrix:
-       platform: ${{ fromJSON(needs.check-changes.outputs.shared_changed == 'true' && '["gateway", "auth", "registry", "stone-read", "stone-write"]' || needs.check-changes.outputs.services_changed) }}
-   
-   steps:
-     - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            any:
+              - 'server/microservices/gateway/**'
+              - 'server/microservices/auth/auth-service/**'
+              - 'server/microservices/registry/**'
+              - 'server/microservices/stone-read/**'
+              - 'server/microservices/stone-write/**'
+            shared: 
+              - 'server/libraries/**'
+              - 'server/microservices/auth/auth-feign/**'
+              - 'server/microservices/**/feign/**'
 
-     - name: Log in to Registry
-       uses: docker/login-action@v2
-       with:
-         registry: ${{ env.REGISTRY }}
-         username: ${{ github.repository_owner }}
-         password: ${{ secrets.GITHUB_TOKEN }}
+  check-and-notify:
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    if: needs.detect-changes.outputs.needs_rebuild != 'true' && needs.detect-changes.outputs.shared_changed != 'true'
+    steps:
+      - name: No changes detected
+        run: |
+          echo "Nie wykryto zmian w monitorowanych ścieżkach."
+          exit 0
 
-     - name: Set up Docker Buildx
-       uses: docker/setup-buildx-action@v2
+  build-and-push:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.needs_rebuild == 'true' || needs.detect-changes.outputs.shared_changed == 'true'
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        service:
+          - name: gateway
+            path: gateway
+          - name: auth
+            path: auth/auth-service
+          - name: registry
+            path: registry
+          - name: stone-read
+            path: stone-read
+          - name: stone-write
+            path: stone-write
+    
+    steps:
+      - uses: actions/checkout@v4
 
-     - name: Extract metadata
-       id: meta
-       uses: docker/metadata-action@v4
-       with:
-         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.platform }}
-         tags: |
-           type=raw,value=latest
-           type=sha,prefix=
-         labels: |
-           org.opencontainers.image.source=https://github.com/${{ github.repository }}
-           org.opencontainers.image.description=Package for ${{ matrix.platform }}
-           org.opencontainers.image.licenses=MIT
-           org.opencontainers.image.version=${{ github.sha }}
-           org.opencontainers.image.created=${{ steps.meta.outputs.created }}
-           org.opencontainers.image.revision=${{ github.sha }}
-     - name: Build and push Docker image
-       uses: docker/build-push-action@v4
-       with:
-         context: ./server
-         file: ./server/microservices/${{ matrix.platform }}/Dockerfile
-         push: true
-         tags: ${{ steps.meta.outputs.tags }}
-         labels: ${{ steps.meta.outputs.labels }}
-         cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.platform }}:latest
-         cache-to: type=inline
-         provenance: false
+      - name: Log in to Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.service.name }}
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.description=Package for ${{ matrix.service.name }}
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.version=${{ github.sha }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./server
+          file: ./server/microservices/${{ matrix.service.path }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.service.name }}:latest
+          cache-to: type=inline
+          provenance: false
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "Wystąpił błąd podczas budowania obrazu ${{ matrix.service.name }}"
