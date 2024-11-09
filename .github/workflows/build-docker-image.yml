@@ -65,16 +65,21 @@ jobs:
           if [ "${{ steps.filter.outputs.stone-write }}" == "true" ]; then
             changed_platforms="${changed_platforms} stone-write"
           fi
+          # Ensure there is at least an empty string for "changed_platforms" if none were detected
+          if [ -z "$changed_platforms" ]; then
+            changed_platforms="none"
+          fi
           echo "changed_platforms=${changed_platforms}" >> $GITHUB_ENV
           echo "::set-output name=changed_platforms::${changed_platforms}"
 
   build-and-push:
     needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.changed_platforms != 'none' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        platform: ${{ fromJson(needs.detect-changes.outputs.changed_platforms) }}
-
+        platform: ${{ fromJson('["' + needs.detect-changes.outputs.changed_platforms + '"]') }}
+    
     steps:
       - uses: actions/checkout@v4
 
