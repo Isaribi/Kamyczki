@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - daniel/compose-fix
-    paths:
-      - 'server/microservices/**'
-      - 'server/libraries/**'
 
 permissions:
   contents: read
@@ -18,66 +15,45 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  detect-changes:
+  check-changes:
     runs-on: ubuntu-latest
     outputs:
-      shared_changed: ${{ steps.filter.outputs.shared }}
-      changed_services: ${{ steps.filter.outputs.changed_services }}
+      shared_changed: ${{ steps.changes.outputs.shared_changed }}
+      services_changed: ${{ steps.changes.outputs.matrix }}
+      changes_detected: ${{ steps.changes.outputs.changes_detected }}
+   
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 2
 
-      - uses: dorny/paths-filter@v2
-        id: filter
-        with:
-          base: 'daniel/compose-fix'
-          filters: |
-            changed_services:
-              gateway: 'server/microservices/gateway/**'
-              auth: 'server/microservices/auth/auth-service/**'
-              registry: 'server/microservices/registry/**'
-              stone_read: 'server/microservices/stone-read/**'
-              stone_write: 'server/microservices/stone-write/**'
-            shared:
-              - 'server/libraries/**'
-              - 'server/microservices/auth/auth-feign/**'
-
-      - name: Set modified services variable
+      - name: Check for changes in services or shared libraries
+        id: changes
         run: |
-          MODIFIED_SERVICES=""
+          SHARED_CHANGED=$(git diff --name-only HEAD^ HEAD | grep -E "server/libraries/|server/microservices/.+/.*-feign/" || true)
+          echo "shared_changed=${SHARED_CHANGED:+true}" >> $GITHUB_OUTPUT
           
-          if [[ "${{ steps.filter.outputs.shared }}" == "true" ]]; then
-            echo "Libraries changed, rebuilding all services."
-            MODIFIED_SERVICES="gateway,auth,registry,stone-read,stone-write"
+          SERVICES=$(git diff --name-only HEAD^ HEAD | grep "server/microservices/" | cut -d'/' -f3 | sort -u | jq -R -s -c 'split("\n")[:-1]')
+          echo "matrix=$SERVICES" >> $GITHUB_OUTPUT
+          
+          if [[ -n "$SHARED_CHANGED" || -n "$SERVICES" ]]; then
+            echo "changes_detected=true" >> $GITHUB_OUTPUT
           else
-            if [[ "${{ steps.filter.outputs.changed_services.gateway }}" == "true" ]]; then
-              MODIFIED_SERVICES="gateway"
-            fi
-            if [[ "${{ steps.filter.outputs.changed_services.auth }}" == "true" ]]; then
-              MODIFIED_SERVICES="${MODIFIED_SERVICES},auth"
-            fi
-            if [[ "${{ steps.filter.outputs.changed_services.registry }}" == "true" ]]; then
-              MODIFIED_SERVICES="${MODIFIED_SERVICES},registry"
-            fi
-            if [[ "${{ steps.filter.outputs.changed_services.stone_read }}" == "true" ]]; then
-              MODIFIED_SERVICES="${MODIFIED_SERVICES},stone-read"
-            fi
-            if [[ "${{ steps.filter.outputs.changed_services.stone_write }}" == "true" ]]; then
-              MODIFIED_SERVICES="${MODIFIED_SERVICES},stone-write"
-            fi
-          fi
-          
-          echo "MODIFIED_SERVICES=${MODIFIED_SERVICES}" >> $GITHUB_ENV
+            echo "changes_detected=false" >> $GITHUB_OUTPUT
 
   build-and-push:
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.changed_services != '' }}
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.changes_detected == 'true' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
     strategy:
       matrix:
-        platform: ${{ fromJson(needs.detect-changes.outputs.MODIFIED_SERVICES) }}
-
+        platform: ${{ fromJSON(needs.check-changes.outputs.shared_changed == 'true' && '["gateway", "auth", "registry", "stone-read", "stone-write"]' || needs.check-changes.outputs.services_changed) }}
+      
     steps:
       - uses: actions/checkout@v4
 
