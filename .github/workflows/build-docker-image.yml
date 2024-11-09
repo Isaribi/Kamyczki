@@ -1,10 +1,9 @@
 name: Create and publish Docker images
+
 on:
   push:
     branches:
       - daniel/compose-fix
-    paths:
-      - 'server/**'
 
 permissions:
   contents: read
@@ -16,110 +15,91 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  detect-changes:
+  check-changes:
     runs-on: ubuntu-latest
     outputs:
-      gateway: ${{ steps.filter.outputs.gateway }}
-      auth: ${{ steps.filter.outputs.auth }}
-      registry: ${{ steps.filter.outputs.registry }}
-      stone-read: ${{ steps.filter.outputs.stone-read }}
-      stone-write: ${{ steps.filter.outputs.stone-write }}
-      shared: ${{ steps.filter.outputs.shared }}
-      any_service_changed: ${{ steps.check-changes.outputs.any_changed }}
+      shared_changed: ${{ steps.changes.outputs.shared_changed }}
+      services_changed: ${{ steps.changes.outputs.matrix }}
+      has_changes: ${{ steps.validate-changes.outputs.has_changes }}
+    
     steps:
       - uses: actions/checkout@v4
-      
-      - uses: dorny/paths-filter@v2
-        id: filter
         with:
-          filters: |
-            gateway:
-              - 'server/microservices/gateway/**'
-            auth:
-              - 'server/microservices/auth/auth-service/**'
-            registry:
-              - 'server/microservices/registry/**'
-            stone-read:
-              - 'server/microservices/stone-read/**'
-            stone-write:
-              - 'server/microservices/stone-write/**'
-            shared:
-              - 'server/libraries/**'
-              - 'server/microservices/auth/auth-feign/**'
-              - 'server/microservices/**/feign/**'
-
-      - id: check-changes
+          fetch-depth: 1
+      
+      - name: Check changes
+        id: changes
         run: |
-          if [[ "${{ steps.filter.outputs.gateway }}" == "true" || \
-                "${{ steps.filter.outputs.auth }}" == "true" || \
-                "${{ steps.filter.outputs.registry }}" == "true" || \
-                "${{ steps.filter.outputs.stone-read }}" == "true" || \
-                "${{ steps.filter.outputs.stone-write }}" == "true" || \
-                "${{ steps.filter.outputs.shared }}" == "true" ]]; then
-            echo "any_changed=true" >> $GITHUB_OUTPUT
+          SHARED_CHANGED=$(git diff --name-only HEAD^ HEAD | grep -E "server/libraries/|server/microservices/.+/.*-feign/" || true)
+          echo "shared_changed=${SHARED_CHANGED:+true}" >> $GITHUB_OUTPUT
+          
+          SERVICES=$(git diff --name-only HEAD^ HEAD | grep "server/microservices/" | cut -d'/' -f3 | sort -u | jq -R -s -c 'split("\n")[:-1]')
+          echo "matrix=$SERVICES" >> $GITHUB_OUTPUT
+
+      - name: Validate changes
+        id: validate-changes
+        run: |
+          SHARED_CHANGED="${{ steps.changes.outputs.shared_changed }}"
+          SERVICES='${{ steps.changes.outputs.matrix }}'
+          
+          if [[ "$SHARED_CHANGED" == "true" || "$SERVICES" != "[]" ]]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "Changes detected - workflow will continue"
           else
-            echo "any_changed=false" >> $GITHUB_OUTPUT
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No changes detected - workflow will be stopped"
           fi
 
   build-and-push:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.any_service_changed == 'true'
+    needs: check-changes
+    if: needs.check-changes.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     
     strategy:
       matrix:
-        service:
-          - name: gateway
-            path: gateway
-          - name: auth
-            path: auth
-          - name: registry
-            path: registry
-          - name: stone-read
-            path: stone-read
-          - name: stone-write
-            path: stone-write
-
-    if: >-
-      needs.detect-changes.outputs.shared == 'true' ||
-      needs.detect-changes.outputs[matrix.service.name] == 'true'
+        platform: ${{ fromJSON(needs.check-changes.outputs.shared_changed == 'true' && '["gateway", "auth", "registry", "stone-read", "stone-write"]' || needs.check-changes.outputs.services_changed) }}
     
     steps:
       - uses: actions/checkout@v4
-
+      
       - name: Log in to Registry
         uses: docker/login-action@v2
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
+      
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
+      
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.service.name }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.platform }}
           tags: |
             type=raw,value=latest
             type=sha,prefix=
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.description=Package for ${{ matrix.service.name }}
+            org.opencontainers.image.description=Package for ${{ matrix.platform }}
             org.opencontainers.image.licenses=MIT
             org.opencontainers.image.version=${{ github.sha }}
+            org.opencontainers.image.created=${{ steps.meta.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
-
+      
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
           context: ./server
-          file: ./server/microservices/${{ matrix.service.path }}/Dockerfile
+          file: ./server/microservices/${{ matrix.platform }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.service.name }}:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.platform }}:latest
           cache-to: type=inline
           provenance: false
