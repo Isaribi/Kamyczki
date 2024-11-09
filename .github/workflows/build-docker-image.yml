@@ -52,7 +52,7 @@ jobs:
       matrix:
         service:
           - name: gateway
-          - name: auth-service
+          - name: auth
           - name: registry
           - name: stone-read
           - name: stone-write
