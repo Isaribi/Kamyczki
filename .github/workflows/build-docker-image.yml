@@ -38,7 +38,6 @@ jobs:
             shared: 
               - 'server/libraries/**'
               - 'server/microservices/auth/auth-feign/**'
-              - 'server/microservices/**/feign/**'
 
   check-and-notify:
     needs: detect-changes
@@ -101,7 +100,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./server
-          file: ./server/microservices/${{ matrix.service.path }}/Dockerfile
+          file: ./microservices/${{ matrix.service.path }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
