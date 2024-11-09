@@ -21,8 +21,7 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      microservices_changed: ${{ steps.filter.outputs.any }}
-      shared_changed: ${{ steps.filter.outputs.shared }}
+      changed_platforms: ${{ steps.filter.outputs.changed_platforms }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,36 +32,51 @@ jobs:
         with:
           base: 'daniel/compose-fix'
           filters: |
-            any:
+            gateway:
               - 'server/microservices/gateway/**'
+            auth:
               - 'server/microservices/auth/auth-service/**'
+            registry:
               - 'server/microservices/registry/**'
+            stone-read:
               - 'server/microservices/stone-read/**'
+            stone-write:
               - 'server/microservices/stone-write/**'
             shared:
               - 'server/libraries/**'
               - 'server/microservices/auth/auth-feign/**'
 
+      - name: Determine changed platforms
+        id: set-changed-platforms
+        run: |
+          changed_platforms=""
+          if [ "${{ steps.filter.outputs.gateway }}" == "true" ]; then
+            changed_platforms="${changed_platforms} gateway"
+          fi
+          if [ "${{ steps.filter.outputs.auth }}" == "true" ]; then
+            changed_platforms="${changed_platforms} auth"
+          fi
+          if [ "${{ steps.filter.outputs.registry }}" == "true" ]; then
+            changed_platforms="${changed_platforms} registry"
+          fi
+          if [ "${{ steps.filter.outputs.stone-read }}" == "true" ]; then
+            changed_platforms="${changed_platforms} stone-read"
+          fi
+          if [ "${{ steps.filter.outputs.stone-write }}" == "true" ]; then
+            changed_platforms="${changed_platforms} stone-write"
+          fi
+          echo "changed_platforms=${changed_platforms}" >> $GITHUB_ENV
+
   build-and-push:
     needs: detect-changes
+    if: ${{ env.changed_platforms != '' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service:
-          - name: gateway
-            path: 'microservices/gateway'
-          - name: auth
-            path: 'microservices/auth'
-          - name: registry
-            path: 'microservices/registry'
-          - name: stone-read
-            path: 'microservices/stone-read'
-          - name: stone-write
-            path: 'microservices/stone-write'
+        platform: [${{ env.changed_platforms }}]
+    
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
       - name: Log in to Registry
         uses: docker/login-action@v2
@@ -78,13 +92,13 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.service.name }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.platform }}
           tags: |
             type=raw,value=latest
             type=sha,prefix=
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.description=Package for ${{ matrix.service.name }}
+            org.opencontainers.image.description=Package for ${{ matrix.platform }}
             org.opencontainers.image.licenses=MIT
             org.opencontainers.image.version=${{ github.sha }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -93,11 +107,10 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./server
-          file: ./server/${{ matrix.service.path }}/Dockerfile
+          file: ./server/microservices/${{ matrix.platform }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.service.name }}:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.platform }}:latest
           cache-to: type=inline
           provenance: false
-        if: ${{ needs.detect-changes.outputs.shared_changed == 'true' || contains(needs.detect-changes.outputs.microservices_changed, matrix.service.name) }}
