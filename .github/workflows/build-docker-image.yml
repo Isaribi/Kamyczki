@@ -101,6 +101,7 @@ jobs:
           context: ./server
           file: ./server/microservices/${{ matrix.platform }}/Dockerfile
           push: true
+
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.platform }}:latest
