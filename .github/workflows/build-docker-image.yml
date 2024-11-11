@@ -3,7 +3,7 @@ name: Create and publish Docker images
 on:
   push:
     branches:
-      - daniel/compose-fix
+      - main
 
 permissions:
   contents: read
