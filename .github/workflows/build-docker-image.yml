@@ -53,6 +53,7 @@ jobs:
               echo "No changes detected - workflow will be stopped"
             fi
           fi
+
   build-and-push:
     needs: check-changes
     if: needs.check-changes.outputs.has_changes == 'true'
@@ -85,8 +86,10 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.platform }}
           tags: |
-            type=raw,value=latest
-            type=sha,prefix=
+            type=raw,value=latest,priority=100
+            type=sha,priority=90
+            type=ref,event=branch,priority=80
+            type=ref,event=tag,priority=70
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.description=Package for ${{ matrix.platform }}
