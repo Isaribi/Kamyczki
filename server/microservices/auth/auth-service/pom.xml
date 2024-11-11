@@ -169,7 +169,7 @@
             <artifactId>vavr</artifactId>
             <version>${vavr.version}</version>
         </dependency>
-
+        <!-- nie wiem -->
     </dependencies>
 
     <build>
@@ -233,7 +233,6 @@
                 <artifactId>maven-pmd-plugin</artifactId>
                 <version>3.15.0</version>
             </plugin>
-
         </plugins>
     </build>
 
