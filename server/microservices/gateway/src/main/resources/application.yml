@@ -3,8 +3,8 @@ server:
 
 eureka:
   client:
-    register-with-eureka: true   # Ensures the gateway registers itself with Eureka
-    fetch-registry: true         # Allows gateway to discover other services
+    register-with-eureka: true
+    fetch-registry: true
     serviceUrl:
       defaultZone: http://localhost:8761/eureka/
   instance:

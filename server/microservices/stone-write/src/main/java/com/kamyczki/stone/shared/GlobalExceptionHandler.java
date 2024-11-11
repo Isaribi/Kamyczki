@@ -1,4 +1,4 @@
-package com.kamyczki.auth.shared;
+package com.kamyczki.stone.shared;
 
 import com.kamyczki.commons.error.ErrorException;
 import com.kamyczki.commons.error.RestError;

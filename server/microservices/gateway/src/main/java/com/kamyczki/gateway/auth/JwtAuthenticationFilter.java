@@ -41,14 +41,14 @@ class JwtAuthenticationFilter implements GlobalFilter {
 
         return webClientBuilder.build()
                 .post()
-                .uri("http://"+ AUTH_SERVICE +"/api/auth/validate-token")
+                .uri("http://" + AUTH_SERVICE + "/api/auth/validate-token")
                 .bodyValue(token)
                 .retrieve()
                 .bodyToMono(UserDetailsImplDto.class)
                 .flatMap(isValid -> chain.filter(exchange))
                 .onErrorResume(e -> {
                     //todo: verify error code
-                    if(e instanceof WebClientResponseException exception){
+                    if (e instanceof WebClientResponseException exception) {
                         exchange.getResponse().setStatusCode(exception.getStatusCode());
                         return exchange.getResponse().setComplete();
                     }
