@@ -28,7 +28,6 @@ jobs:
             const workflowName = 'Java CI';
             
             if (context.payload.workflow_run) {
-              // Jeśli wydarzenie to workflow_run, sprawdź jego status bezpośrednio
               if (context.payload.workflow_run.name === workflowName && 
                   context.payload.workflow_run.conclusion === 'success') {
                 console.log('Java CI workflow passed ✓');
@@ -38,22 +37,22 @@ jobs:
               return;
             }
             
-            // Dla pull_request, sprawdź ostatni run Java CI
             const { data: workflows } = await github.rest.actions.listWorkflowRuns({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'java-ci.yml',
-              branch: context.payload.pull_request.head.ref,
-              per_page: 1
+              event: 'pull_request',
+              status: 'completed',
+              head_sha: context.payload.pull_request.head.sha
             });
             
-            if (workflows.total_count === 0) {
+            const javaCIRun = workflows.workflow_runs.find(run => run.name === workflowName);
+            
+            if (!javaCIRun) {
               core.setFailed('No Java CI builds found');
               return;
             }
             
-            const latestRun = workflows.workflow_runs[0];
-            if (latestRun.conclusion !== 'success') {
+            if (javaCIRun.conclusion !== 'success') {
               core.setFailed('Java CI build must pass before merging');
               return;
             }
