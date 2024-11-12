@@ -1,14 +1,14 @@
 name: Merge Check
 
 on:
+  workflow_run:
+    workflows: ["Java CI"]
+    types:
+      - completed
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
     branches:
       - main
-  check_suite:
-    types: [completed]
-  status:
-    types: [created, completed]
 
 permissions:
   contents: write
@@ -29,7 +29,7 @@ jobs:
             const { data: checks } = await github.rest.checks.listForRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              ref: context.payload.pull_request.head.sha
+              ref: context.payload.pull_request ? context.payload.pull_request.head.sha : context.payload.workflow_run.head_commit.id
             });
             
             const javaCICheck = checks.check_runs.find(check => check.name === 'build');
