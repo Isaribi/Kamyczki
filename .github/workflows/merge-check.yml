@@ -19,8 +19,60 @@ permissions:
 jobs:
   check-and-merge:
     runs-on: ubuntu-latest
-    needs: [wait-for-build]
     steps:
+      - name: Wait for Java CI build to complete
+        id: wait_for_build
+        uses: lewagon/wait-on-check-action@v1.3.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          check-name: 'build'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 5
+
+      - name: Check if Java CI build passed
+        id: check_java_ci
+        if: ${{ steps.wait_for_build.outputs.check-status == 'success' }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: checks } = await github.rest.checks.listForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.payload.pull_request.head.sha
+            });
+            
+            const javaCICheck = checks.check_runs.find(check => check.name === 'build');
+            
+            if (!javaCICheck) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: '❌ Java CI build not found. Please ensure the build is triggered and completed.'
+              });
+              core.setFailed('Java CI build not found');
+              return;
+            }
+            
+            if (javaCICheck.conclusion !== 'success') {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: '❌ Java CI build failed. Build must pass before merging.'
+              });
+              core.setFailed('Java CI build must pass before merging');
+              return;
+            }
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: '✅ Java CI build passed successfully!'
+            });
+
       - name: Check if PR is approved
         id: check_pr
         uses: actions/github-script@v7
@@ -38,28 +90,21 @@ jobs:
             const approved = reviews.some(review => review.state === 'APPROVED');
             
             if (!approved) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: '❌ Pull request needs to be approved first.'
+              });
               core.setFailed('Pull request needs to be approved first');
               return;
             }
-            
-            console.log('PR is approved ✓');
-
-      - name: Update PR status
-        if: always()
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const isApproved = '${{ steps.check_pr.conclusion }}' === 'success';
-            const status = isApproved ? 
-              '✅ All checks passed successfully!' : 
-              '❌ Not all requirements are met. Check approvals.';
             
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.payload.pull_request.number,
-              body: status
+              body: '✅ Pull request approved.'
             });
 
       - name: Auto-merge if everything passes
@@ -75,18 +120,12 @@ jobs:
                 pull_number: context.payload.pull_request.number,
                 merge_method: 'squash'
               });
-              console.log('PR merged successfully! 🎉');
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: '✅ PR merged successfully! 🎉'
+              });
             } catch (error) {
               core.setFailed(`Failed to merge PR: ${error.message}`);
             }
-
-  wait-for-build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Wait for Java CI build
-        uses: lewagon/wait-on-check-action@v1.3.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          check-name: 'build'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 5
