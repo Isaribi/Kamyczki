@@ -1,14 +1,14 @@
 name: Merge Check
 
 on:
-  workflow_run:
-    workflows: 
-      - "java_ci.yml"
-      - "Java CI"
-    types:
-      - completed
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
     branches:
       - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -19,7 +19,7 @@ permissions:
 jobs:
   check-and-merge:
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.conclusion == 'success'
+    needs: [wait-for-build]
     steps:
       - name: Check if PR is approved
         id: check_pr
@@ -27,12 +27,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            if (!context.payload.workflow_run.pull_requests.length) {
-              console.log('No pull request associated with this workflow run');
-              return;
-            }
-            
-            const pull_number = context.payload.workflow_run.pull_requests[0].number;
+            const pull_number = context.payload.pull_request.number;
             
             const { data: reviews } = await github.rest.pulls.listReviews({
               owner: context.repo.owner,
@@ -55,11 +50,6 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            if (!context.payload.workflow_run.pull_requests.length) {
-              return;
-            }
-            
-            const pull_number = context.payload.workflow_run.pull_requests[0].number;
             const isApproved = '${{ steps.check_pr.conclusion }}' === 'success';
             const status = isApproved ? 
               '✅ All checks passed successfully!' : 
@@ -68,7 +58,7 @@ jobs:
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: pull_number,
+              issue_number: context.payload.pull_request.number,
               body: status
             });
 
@@ -78,20 +68,25 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            if (!context.payload.workflow_run.pull_requests.length) {
-              return;
-            }
-            
-            const pull_number = context.payload.workflow_run.pull_requests[0].number;
-
             try {
               await github.rest.pulls.merge({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                pull_number: pull_number,
+                pull_number: context.payload.pull_request.number,
                 merge_method: 'squash'
               });
               console.log('PR merged successfully! 🎉');
             } catch (error) {
               core.setFailed(`Failed to merge PR: ${error.message}`);
             }
+
+  wait-for-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Java CI build
+        uses: lewagon/wait-on-check-action@v1.3.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          check-name: 'build'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 5
