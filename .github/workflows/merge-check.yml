@@ -2,7 +2,9 @@ name: Merge Check
 
 on:
   workflow_run:
-    workflows: ["Java CI"]
+    workflows: 
+      - "java_ci.yml"
+      - "Java CI"
     types:
       - completed
     branches:
