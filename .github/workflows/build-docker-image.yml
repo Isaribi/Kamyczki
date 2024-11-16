@@ -1,7 +1,10 @@
 name: Create and publish Docker images
-
 on:
   push:
+    branches:
+      - main
+  pull_request:
+    types: [closed]
     branches:
       - main
 
@@ -17,6 +20,7 @@ env:
 
 jobs:
   check-changes:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
     runs-on: ubuntu-latest
     outputs:
       shared_changed: ${{ steps.changes.outputs.shared_changed }}
@@ -31,9 +35,17 @@ jobs:
       - name: Check changes
         id: changes
         run: |
-          PREVIOUS_COMMIT=$(git rev-parse HEAD^)
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            # For PR, compare base and merge commit
+            PREVIOUS_COMMIT=${{ github.event.pull_request.base.sha }}
+            CURRENT_COMMIT=${{ github.event.pull_request.merge_commit_sha }}
+          else
+            # For push, compare with previous commit
+            PREVIOUS_COMMIT=$(git rev-parse HEAD^)
+            CURRENT_COMMIT=$(git rev-parse HEAD)
+          fi
           
-          SHARED_CHANGED=$(git diff --name-only $PREVIOUS_COMMIT HEAD | grep -E "server/libraries/|server/microservices/.+/.*-feign/" || true)
+          SHARED_CHANGED=$(git diff --name-only $PREVIOUS_COMMIT $CURRENT_COMMIT | grep -E "server/libraries/|server/microservices/.+/.*-feign/" || true)
           
           if [[ -n "$SHARED_CHANGED" ]]; then
             echo "shared_changed=true" >> $GITHUB_OUTPUT
@@ -41,7 +53,7 @@ jobs:
             echo "has_changes=true" >> $GITHUB_OUTPUT
             echo "Shared libraries changed - will rebuild all services"
           else
-            SERVICES=$(git diff --name-only $PREVIOUS_COMMIT HEAD | grep "server/microservices/" | cut -d'/' -f3 | sort -u | jq -R -s -c 'split("\n")[:-1]')
+            SERVICES=$(git diff --name-only $PREVIOUS_COMMIT $CURRENT_COMMIT | grep "server/microservices/" | cut -d'/' -f3 | sort -u | jq -R -s -c 'split("\n")[:-1]')
             echo "shared_changed=false" >> $GITHUB_OUTPUT
             echo "services=$SERVICES" >> $GITHUB_OUTPUT
             

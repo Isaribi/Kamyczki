@@ -23,6 +23,9 @@ server/microservices/gateway/mvnw
 # Mono auto generated files
 mono_crash.*
 
+#Local github actions
+act.exe
+
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
