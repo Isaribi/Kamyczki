@@ -3,7 +3,8 @@ name: Java code tests
 on:
   schedule:
     - cron: '0 22 * * 0'
-  push:
+  pull_request:
+    types: [closed]
     branches:
       - main
 
