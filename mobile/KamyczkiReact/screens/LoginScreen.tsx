@@ -1,11 +1,13 @@
 import React, { useEffect ,useState} from 'react';
-import {Button, Text, View, ScrollView, Pressable, Alert, StyleSheet } from 'react-native';
+import {Text, View, ScrollView, Pressable, Alert, StyleSheet, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { globalStyle } from '../assets/styles/globalStyles';
 import Input from '../components/AuthForm/Input';
 import Title from '../components/Title';
 import { Routes } from '../navigation/Routes';
 import { useAuth } from '../context/AuthContext';
+import Button from '../components/Button';
+
 
 export default function LoginScreen({navigation}:any) {
   const [email,setEmail] = useState('');
@@ -20,25 +22,35 @@ export default function LoginScreen({navigation}:any) {
   };
 
   return (
-    <SafeAreaView style={[globalStyle.backgroundWhite, globalStyle.flex]}>
+    <SafeAreaView style={[globalStyle.backgroundScreen, globalStyle.flex]}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={style.container}>
-          <View style={{marginBottom:24}}>
-            <Title title={'Logowanko'}/>
+          <View style={style.logoContainer}>
+            <Image source={require('.././assets/images/logo.png')} style={style.logoImage}/>
+            {/* <Text style={{fontSize:20}}>Kamyczki</Text> */}
           </View>
-          <View style={{marginBottom:24}}>
-            <Input isPassword={false} keyboardType={'email-address'} onChangeText={(value) => setEmail(value)} placeHolder={'Wpisz e-mail...'} label={'Email'}/>
+          <View style={style.pageName}>
+            <Title title={'Zaloguj się'} style={globalStyle.textColor}/>
           </View>
-          <View style={{marginBottom:24}}>
-            <Input isPassword={true} onChangeText={(value) => setPassword(value)} placeHolder={'Wpisz hasło...'} label={'Hasło'}/>
+          <View style={style.pageContent}>
+            <View style={style.inputContainer}>
+              <View style={{width:'90%'}}>
+                <View style={{marginBottom:24}}>
+                  <Input inputBackgroundColor={globalStyle.inputBackground.backgroundColor} isPassword={false} keyboardType={'email-address'} onChangeText={(value) => setEmail(value)} placeHolder='Wpisz e-mail...' label={'Email'}/>
+                </View>
+                <View style={{marginBottom:15}}>
+                  <Input inputBackgroundColor={globalStyle.inputBackground.backgroundColor} isPassword={true} onChangeText={(value) => setPassword(value)} placeHolder={'Wpisz hasło...'} label={'Hasło'}/>
+                </View>
+                <Pressable style={{marginBottom:10}}>
+                      <Text style={{color:'#5a8ed1', fontSize:16, lineHeight:16}}>Nie pamiętasz hasła?</Text>
+                </Pressable>
+              </View>
+            </View>
           </View>
-          <View>
-            <Button onPress={login} title='Zatwierdź'/>
+          <View style={style.buttonContainer}>
+                <Button onPress={login} text='Zaloguj się' style={[globalStyle.buttonBackground,{width:'90%'}]}/>
+                <Button onPress={() => navigation.navigate(Routes.Register)} text="Zarejestruj się" style={[globalStyle.secondButtonBackground,{width:'70%'}]}
+            />
           </View>
-          <Pressable style={style.registerPressable} onPress={() => navigation.navigate(Routes.Register)}>
-            <Text style={{marginTop:40, textAlign:'center', fontSize:18}}>Nie masz konta? 
-                <Text style={{color:'lightblue'}}>Zarejestruj się!</Text>
-            </Text>
-          </Pressable>
         </ScrollView>
     </SafeAreaView>
   );
@@ -47,12 +59,38 @@ export default function LoginScreen({navigation}:any) {
 export const style = StyleSheet.create({
     container:
     {
-        marginHorizontal:24,
         flex:1,
-        justifyContent:'center',
     },
-    registerPressable:
+    logoContainer:
     {
-        alignItems:'center',
-    }
+      flexDirection:'row',
+      alignItems:'center',
+      justifyContent:'flex-start',
+    },
+    logoImage:
+    {
+      width:70,
+      height:70,
+    },
+    pageContent:
+    {
+      paddingVertical:24,
+    },
+    pageName:
+    {
+      marginBottom:24,
+      marginHorizontal:12,
+    },
+    inputContainer:
+    {
+      flexDirection:'row',
+      justifyContent:'center',
+    },
+    buttonContainer:
+    {
+      flex:1,
+      alignItems:'center',
+      justifyContent:'space-between',
+      marginVertical:14,
+    },
 });
