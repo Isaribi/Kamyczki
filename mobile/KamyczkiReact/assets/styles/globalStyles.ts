@@ -1,44 +1,45 @@
 import { StyleSheet } from "react-native";
 
-type Palette = {
-    backgroundScreen: string;
-    textColor: string;
-    buttonBackground: string;
-    secondButtonBackground: string;
-    inputBgColor: string;
-  };
+// type Palette = {
+//     backgroundScreen: string;
+//     textColor: string;
+//     buttonBackground: string;
+//     secondButtonBackground: string;
+//     inputBgColor: string;
+//   };
   
-const generateRandomPalette = (colors: string[]): Palette | null => {
-    if (colors.length < 5) {
-        console.error("Za mao koloruw.");
-        return null;
-    }
-    const getRandomColor = (): string => {
-        const randomIndex = Math.floor(Math.random() * colors.length);
-        return colors.splice(randomIndex, 1)[0];
-    };
+// const generateRandomPalette = (colors: string[]): Palette | null => {
+//     if (colors.length < 5) {
+//         console.error("Za mao koloruw.");
+//         return null;
+//     }
+//     const getRandomColor = (): string => {
+//         const randomIndex = Math.floor(Math.random() * colors.length);
+//         return colors.splice(randomIndex, 1)[0];
+//     };
 
-    return {
-        backgroundScreen: getRandomColor(),
-        textColor: getRandomColor(),
-        buttonBackground: getRandomColor(),
-        secondButtonBackground: getRandomColor(),
-        inputBgColor: getRandomColor(),
-    };
-};
+//     return {
+//         backgroundScreen: getRandomColor(),
+//         textColor: getRandomColor(),
+//         buttonBackground: getRandomColor(),
+//         secondButtonBackground: getRandomColor(),
+//         inputBgColor: getRandomColor(),
+//     };
+// };
+
   
   //Tutaj wklepac theme paletke
-  const colorPool = [
-    "#4C4B16", 
-    "#898121", 
-    "#E6C767", 
-    "#F87A53", 
-    "#7a753e", 
-  ];
+//   const colorPool = [
+//     "#4C4B16", 
+//     "#898121", 
+//     "#E6C767", 
+//     "#F87A53", 
+//     "#7a753e", 
+//   ];
 
-  
-  const palette = generateRandomPalette([...colorPool]);
-  console.log(palette);
+//   const palette = generateRandomPalette([...colorPool]);
+//   console.log("chuj"+palette);
+
 //BASIC
 
 // backgroundScreen:
@@ -103,24 +104,29 @@ export const globalStyle = StyleSheet.create({
     },
     backgroundScreen:
     {
-        backgroundColor: palette?.backgroundScreen
+        backgroundColor: "#EBF4F6"
+    },
+    registerBackgroundScreen:
+    {
+        backgroundColor: "#e0f5fa"
     },
     textColor:
     {
-        color:palette?.textColor,
+        color:"#18c8f8",
         fontWeight:'bold',
         fontSize:32,
+        textAlign:'left',
     },
     buttonBackground:
     {
-        backgroundColor:palette?.buttonBackground
+        backgroundColor:"#37B7C3"
     },
     secondButtonBackground:
     {
-        backgroundColor:palette?.secondButtonBackground
+        backgroundColor:"#088395"
     },
     inputBackground:
     {
-        backgroundColor:palette?.inputBgColor
+        backgroundColor:'white'
     }
 });

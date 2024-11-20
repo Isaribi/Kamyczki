@@ -1,5 +1,5 @@
-import React, {useState} from 'react';
-import {Text, TextInput, View, StyleSheet, KeyboardTypeOptions, Pressable } from 'react-native';
+import React, {useRef, useState} from 'react';
+import {Text, TextInput, View, StyleSheet, KeyboardTypeOptions, Pressable} from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 interface InputProps
@@ -10,20 +10,34 @@ interface InputProps
     keyboardType?:KeyboardTypeOptions | undefined,
     isPassword:boolean,
     inputBackgroundColor?:string
+    onFocusScroll?: (y: number) => void;
 }
 
-const Input: React.FC<InputProps> = ({ label, isPassword = false, onChangeText,inputBackgroundColor, ...props }) => {
+const Input: React.FC<InputProps> = ({ label, isPassword = false, onChangeText,inputBackgroundColor,onFocusScroll, ...props }) => {
     const [isPasswordVisible, setIsPasswordVisible] = useState(!isPassword);
     const [value,setValue] = useState('');
+    const inputRef = useRef<View>(null);
+
+    const handleFocus = () => {
+        if (inputRef.current) {
+          // Pobieranie pozycji za pomocą measure
+          inputRef.current.measure((x, y, width, height, pageX, pageY) => {
+            if (onFocusScroll) {
+              onFocusScroll(pageY-(height+y)); // Wywołanie funkcji rodzica
+            }
+          });
+        }
+    }
     return (
         <View style={styles.container}>
             {label && <Text style={styles.label}>{label}</Text>}
-            <View style={[styles.inputContainer,{backgroundColor:inputBackgroundColor}]}>
+            <View ref={inputRef} style={[styles.inputContainer,{backgroundColor:inputBackgroundColor}]}>
                 <TextInput
                     autoCapitalize='none'
                     style={styles.input}
                     secureTextEntry={!isPasswordVisible}
                     value={value}
+                    onFocus={handleFocus}
                     placeholder={props.placeHolder}
                     onChangeText={(val) => {setValue(val); onChangeText(val)}}
                     keyboardType={props.keyboardType}
@@ -62,8 +76,12 @@ const styles = StyleSheet.create({
         borderColor: 'lightgray',
         borderRadius: 8,
         paddingHorizontal: 12,
+        elevation:8,// cień dla androida
         backgroundColor: 'white',
-        elevation:2,
+        shadowColor: '#000', // Cień (opcjonalnie)
+        shadowOpacity: 0.1, // Przezroczystość cienia (opcjonalnie)
+        shadowOffset: { width: 0, height: 4 }, // Pozycja cienia (opcjonalnie)
+        shadowRadius: 10, // Rozmycie cienia (opcjonalnie)
     },
     input: {
         flex: 1,
