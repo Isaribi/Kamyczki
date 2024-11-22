@@ -13,7 +13,7 @@ public class SignInDto {
 
     @NotNull
     @NotBlank
-    private final String username;
+    private final String email;
 
     @NotNull
     @NotBlank

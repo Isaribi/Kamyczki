@@ -29,14 +29,14 @@ class AuthenticationService {
     public TokenDto authenticate(SignInDto request) {
         Try.run(() -> authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
+                        request.getEmail(),
                         request.getPassword()
                 )
         )).onFailure(AuthenticationException.class, thr -> {
-            throw WRONG_PASSWORD.throwWithParam(request.getUsername());
+            throw WRONG_PASSWORD.throwWithParam(request.getEmail());
         });
 
-        var user = userFacade.getUserDetails(request.getUsername());
+        var user = userFacade.getUserDetails(request.getEmail());
         var jwtToken = jwtService.generateToken(user);
         return new TokenDto(jwtToken);
     }

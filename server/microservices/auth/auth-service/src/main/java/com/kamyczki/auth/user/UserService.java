@@ -21,14 +21,13 @@ class UserService implements UserFacade {
     private final PasswordEncoder passwordEncoder;
 
     @Override
-    public UserDetailsDto getUserDetails(String username) {
-        return userRepository.findByUsername(username)
+    public UserDetailsDto getUserDetails(String email) {
+        return userRepository.findByEmail(email)
                 .map(userMapper::toUserDetails)
-                .orElseThrow(()->  RESOURCE_NOT_FOUND.throwWithObjectAndFieldAndValue("User", "username", username));
+                .orElseThrow(()->  RESOURCE_NOT_FOUND.throwWithObjectAndFieldAndValue("User", "email", email));
     }
 
     UserDto registerUser(RegisterUserDto registerUserDto) {
-        verifyUsername(registerUserDto.getUsername());
         verifyEmail(registerUserDto.getEmail());
 
         var encodedPassword = passwordEncoder.encode(registerUserDto.getPassword());
@@ -42,12 +41,6 @@ class UserService implements UserFacade {
     private void verifyEmail(String email) {
         if (userRepository.existsByEmail(email)) {
             throw RESOURCE_ALREADY_EXISTS.throwWithObjectAndField("User", "email");
-        }
-    }
-
-    private void verifyUsername(String username) {
-        if (userRepository.existsByUsername(username)) {
-           throw RESOURCE_ALREADY_EXISTS.throwWithObjectAndField("User", "username");
         }
     }
 }
