@@ -33,17 +33,17 @@ jobs:
         id: changes
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            PREVIOUS_COMMIT=$(git merge-base main HEAD)
-            CURRENT_COMMIT=$(git rev-parse HEAD)
             echo "Workflow dispatched manually - comparing changes between last commit on main and current commit"
-          else
             PREVIOUS_COMMIT=$(git rev-parse main)
             CURRENT_COMMIT=$(git rev-parse HEAD)
+          else
             echo "Push event - comparing changes between last commit on main and current commit"
+            PREVIOUS_COMMIT=$(git rev-parse main)
+            CURRENT_COMMIT=$(git rev-parse HEAD)
           fi
 
           SHARED_CHANGED=$(git diff --name-only $PREVIOUS_COMMIT $CURRENT_COMMIT | grep -E "server/libraries/|server/microservices/.+/.*-feign/" || true)
-
+          
           if [[ -n "$SHARED_CHANGED" ]]; then
             echo "shared_changed=true" >> $GITHUB_OUTPUT
             echo "services=$ALL_SERVICES" >> $GITHUB_OUTPUT
