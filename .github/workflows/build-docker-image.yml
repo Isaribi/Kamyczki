@@ -33,12 +33,10 @@ jobs:
         id: changes
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            # Porównaj do commit'a przed merge w przypadku workflow_dispatch
             PREVIOUS_COMMIT=$(git merge-base main HEAD)
             CURRENT_COMMIT=$(git rev-parse HEAD)
             echo "Workflow dispatched manually - comparing changes between last commit on main and current commit"
           else
-            # Porównaj do ostatniego commit'a z main w przypadku push
             PREVIOUS_COMMIT=$(git rev-parse main)
             CURRENT_COMMIT=$(git rev-parse HEAD)
             echo "Push event - comparing changes between last commit on main and current commit"
