@@ -17,7 +17,7 @@ env:
 
 jobs:
   check-changes:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       shared_changed: ${{ steps.changes.outputs.shared_changed }}
@@ -32,15 +32,15 @@ jobs:
       - name: Check changes
         id: changes
         run: |
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            # For PR, compare base and merge commit
-            PREVIOUS_COMMIT=${{ github.event.pull_request.base.sha }}
-            CURRENT_COMMIT=${{ github.event.pull_request.merge_commit_sha }}
-          else
-            # For push, compare with previous commit
-            PREVIOUS_COMMIT=$(git rev-parse HEAD^)
-            CURRENT_COMMIT=$(git rev-parse HEAD)
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "shared_changed=true" >> $GITHUB_OUTPUT
+            echo "services=$ALL_SERVICES" >> $GITHUB_OUTPUT
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "Workflow dispatched manually - will rebuild all services"
           fi
+          
+          PREVIOUS_COMMIT=$(git rev-parse HEAD^)
+          CURRENT_COMMIT=$(git rev-parse HEAD)
           
           SHARED_CHANGED=$(git diff --name-only $PREVIOUS_COMMIT $CURRENT_COMMIT | grep -E "server/libraries/|server/microservices/.+/.*-feign/" || true)
           
