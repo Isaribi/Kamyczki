@@ -40,7 +40,8 @@ jobs:
             PREVIOUS_COMMIT=$(git rev-parse main)
             CURRENT_COMMIT=$(git rev-parse HEAD)
             echo "Push event - comparing changes between last commit on main and current commit"
-          
+          fi
+
           SHARED_CHANGED=$(git diff --name-only $PREVIOUS_COMMIT $CURRENT_COMMIT | grep -E "server/libraries/|server/microservices/.+/.*-feign/" || true)
 
           if [[ -n "$SHARED_CHANGED" ]]; then
