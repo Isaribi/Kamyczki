@@ -9,17 +9,21 @@ import lombok.RequiredArgsConstructor;
 public class RegisterUserDto {
 
     @NotNull
-    @NotBlank
-    @Max(50)
+    @NotBlank(message = "Cannot be blank")
+    @Size(min = 5, max = 20)
     private final String username;
 
     @NotNull
-    @Min(10)
-    @Max(100)
+    @Size(min = 10, max = 50)
+    @Pattern(
+            regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#&()–[{}]:;',?/*~$^+=<>]).{10,50}$",
+            message = "Password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character"
+    )
     private final String password;
 
     @NotNull
     @Email
-    @Max(100)
+    @NotBlank
+    @Size(max = 100)
     private final String email;
 }
