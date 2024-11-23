@@ -122,11 +122,19 @@ jobs:
                 pull_number: context.payload.pull_request.number,
                 merge_method: 'squash'
               });
+              
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'build-docker-image.yml',
+                ref: 'main'
+              });
+              
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.payload.pull_request.number,
-                body: '✅ PR merged successfully! 🎉'
+                body: '✅ PR merged successfully! 🎉 Docker build workflow triggered.'
               });
             } catch (error) {
               core.setFailed(`Failed to merge PR: ${error.message}`);
