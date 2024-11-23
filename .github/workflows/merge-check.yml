@@ -17,6 +17,7 @@ permissions:
   pull-requests: write
   checks: write
   statuses: write
+  actions: write
 
 jobs:
   check-and-merge:
