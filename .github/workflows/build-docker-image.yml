@@ -3,6 +3,12 @@ on:
   push:
     branches:
       - main
+  workflow_run:
+    workflows: ["Merge Check"]
+    types:
+      - completed
+    branches:
+      - main
 
 permissions:
   contents: read
