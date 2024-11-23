@@ -28,22 +28,23 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+          
       - name: Check changes
         id: changes
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "shared_changed=true" >> $GITHUB_OUTPUT
-            echo "services=$ALL_SERVICES" >> $GITHUB_OUTPUT
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "Workflow dispatched manually - will rebuild all services"
-          fi
-          
-          PREVIOUS_COMMIT=$(git rev-parse HEAD^)
-          CURRENT_COMMIT=$(git rev-parse HEAD)
+            # Porównaj do commit'a przed merge w przypadku workflow_dispatch
+            PREVIOUS_COMMIT=$(git merge-base main HEAD)
+            CURRENT_COMMIT=$(git rev-parse HEAD)
+            echo "Workflow dispatched manually - comparing changes between last commit on main and current commit"
+          else
+            # Porównaj do ostatniego commit'a z main w przypadku push
+            PREVIOUS_COMMIT=$(git rev-parse main)
+            CURRENT_COMMIT=$(git rev-parse HEAD)
+            echo "Push event - comparing changes between last commit on main and current commit"
           
           SHARED_CHANGED=$(git diff --name-only $PREVIOUS_COMMIT $CURRENT_COMMIT | grep -E "server/libraries/|server/microservices/.+/.*-feign/" || true)
-          
+
           if [[ -n "$SHARED_CHANGED" ]]; then
             echo "shared_changed=true" >> $GITHUB_OUTPUT
             echo "services=$ALL_SERVICES" >> $GITHUB_OUTPUT
@@ -53,7 +54,7 @@ jobs:
             SERVICES=$(git diff --name-only $PREVIOUS_COMMIT $CURRENT_COMMIT | grep "server/microservices/" | cut -d'/' -f3 | sort -u | jq -R -s -c 'split("\n")[:-1]')
             echo "shared_changed=false" >> $GITHUB_OUTPUT
             echo "services=$SERVICES" >> $GITHUB_OUTPUT
-            
+
             if [[ "$SERVICES" != "[]" ]]; then
               echo "has_changes=true" >> $GITHUB_OUTPUT
               echo "Services changed: $SERVICES"
