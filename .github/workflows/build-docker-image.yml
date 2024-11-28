@@ -3,10 +3,7 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    types: [closed]
-    branches:
-      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,7 +17,7 @@ env:
 
 jobs:
   check-changes:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       shared_changed: ${{ steps.changes.outputs.shared_changed }}
@@ -35,18 +32,18 @@ jobs:
       - name: Check changes
         id: changes
         run: |
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            # For PR, compare base and merge commit
-            PREVIOUS_COMMIT=${{ github.event.pull_request.base.sha }}
-            CURRENT_COMMIT=${{ github.event.pull_request.merge_commit_sha }}
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "Workflow dispatched manually - comparing changes between last commit on main and current commit"
+            PREVIOUS_COMMIT=$(git merge-base main HEAD~1)
+            CURRENT_COMMIT=$(git rev-parse HEAD)
           else
-            # For push, compare with previous commit
-            PREVIOUS_COMMIT=$(git rev-parse HEAD^)
+            echo "Push event - comparing changes between last commit on main and current commit"
+            PREVIOUS_COMMIT=$(git rev-parse HEAD~1)
             CURRENT_COMMIT=$(git rev-parse HEAD)
           fi
-          
+
           SHARED_CHANGED=$(git diff --name-only $PREVIOUS_COMMIT $CURRENT_COMMIT | grep -E "server/libraries/|server/microservices/.+/.*-feign/" || true)
-          
+
           if [[ -n "$SHARED_CHANGED" ]]; then
             echo "shared_changed=true" >> $GITHUB_OUTPUT
             echo "services=$ALL_SERVICES" >> $GITHUB_OUTPUT
@@ -56,7 +53,7 @@ jobs:
             SERVICES=$(git diff --name-only $PREVIOUS_COMMIT $CURRENT_COMMIT | grep "server/microservices/" | cut -d'/' -f3 | sort -u | jq -R -s -c 'split("\n")[:-1]')
             echo "shared_changed=false" >> $GITHUB_OUTPUT
             echo "services=$SERVICES" >> $GITHUB_OUTPUT
-            
+
             if [[ "$SERVICES" != "[]" ]]; then
               echo "has_changes=true" >> $GITHUB_OUTPUT
               echo "Services changed: $SERVICES"
@@ -65,7 +62,7 @@ jobs:
               echo "No changes detected - workflow will be stopped"
             fi
           fi
-
+          
   build-and-push:
     needs: check-changes
     if: needs.check-changes.outputs.has_changes == 'true'
