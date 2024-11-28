@@ -3,17 +3,18 @@ import {Text, TouchableOpacity, View, StyleSheet  } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Title from './Title';
 import { Routes } from '../navigation/Routes';
+import AntDesign from '@expo/vector-icons/AntDesign';
 
 const Header = ({navigation}:any) => {
   return (
     <View style={styles.headerView}>
         <Title title={'Daj kamienia'}/>
-        <TouchableOpacity style={styles.messageIcon} onPress={() => {navigation.navigate(Routes.Profile);}}>
+        <TouchableOpacity style={styles.messageIcon} onPress={() => {navigation.openDrawer();}}>
           {/* <FontAwesomeIcon icon={faEnvelope} color={'black'} size={20}/> */}
-          <Ionicons name='mail' size={20} color={'black'} />
-          <View style={styles.messageNumberContainer}>
+          <AntDesign name="user" size={26} color="black" />
+          {/* <View style={styles.messageNumberContainer}>
             <Text style={styles.messageNumber}>2</Text>
-          </View>
+          </View> */}
         </TouchableOpacity>
       </View>
   );
@@ -31,8 +32,6 @@ const styles = StyleSheet.create({
     messageIcon:
     {
         padding:14,
-        backgroundColor:'lightgray',
-        borderRadius:100,
     },
     messageNumberContainer:
     {

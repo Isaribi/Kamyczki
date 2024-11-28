@@ -20,10 +20,9 @@ const Input: React.FC<InputProps> = ({ label, isPassword = false, onChangeText,i
 
     const handleFocus = () => {
         if (inputRef.current) {
-          // Pobieranie pozycji za pomocą measure
           inputRef.current.measure((x, y, width, height, pageX, pageY) => {
             if (onFocusScroll) {
-              onFocusScroll(pageY-(height+y)); // Wywołanie funkcji rodzica
+              onFocusScroll(pageY-(height+y));
             }
           });
         }

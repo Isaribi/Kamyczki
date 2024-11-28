@@ -40,7 +40,7 @@ export default function RegisterScreen ({navigation}:any) {
 
     return (
         <SafeAreaView style={[globalStyle.registerBackgroundScreen, globalStyle.flex]}>
-        <ScrollView ref={scrollViewRef} showsVerticalScrollIndicator={false}>
+        <ScrollView keyboardShouldPersistTaps='handled' ref={scrollViewRef} showsVerticalScrollIndicator={false}>
           <View style={style.pageName}>
             <Title title={'Zarejestruj się'} style={globalStyle.textColor}/>
           </View>

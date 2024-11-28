@@ -2,7 +2,7 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 // import Profile from "../screens/Profile/Profile";
-// import { createDrawerNavigator } from '@react-navigation/drawer';
+import { createDrawerNavigator } from '@react-navigation/drawer';
 import { BlurView } from "expo-blur";
 import { Routes } from "./Routes";
 import Home from "../screens/HomeScreen";
@@ -10,7 +10,7 @@ import Profile from "../screens/ProfileScreen";
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 const MainTab = createBottomTabNavigator();
-// const Drawer = createDrawerNavigator();
+const Drawer = createDrawerNavigator();
 
 // const MainMenuNavigation = () => 
 // {
@@ -22,16 +22,16 @@ const MainTab = createBottomTabNavigator();
 //     );
 // };
 
-const TabBarIcon = (props:any) =>
-{
-    return(<View style={{ justifyContent: 'center', alignItems: 'center' }}>
-        <Ionicons
-            name={props.name}
-            size={24}
-            color={props.isFocused ? 'green' : 'gray'}
-        />
-        </View>)
-}
+// const TabBarIcon = (props:any) =>
+// {
+//     return(<View style={{ justifyContent: 'center', alignItems: 'center' }}>
+//         <Ionicons
+//             name={props.name}
+//             size={24}
+//             color={props.isFocused ? 'green' : 'gray'}
+//         />
+//         </View>)
+// }
 
 const MainNavigation = () =>
 {
@@ -41,18 +41,31 @@ const MainNavigation = () =>
         //         <BlurView tint="extraLight" intensity={100} style={StyleSheet.absoluteFill} />
         //     </View>
         //   ),}}>
-        <MainTab.Navigator screenOptions={{
-            headerShown:false,
-            tabBarStyle:
-            {
-                zIndex:1,
-                elevation:1,
-            },
-        }}>
-            <MainTab.Screen name={Routes.Home} component={Home} options={{tabBarIcon:({focused}) => (<TabBarIcon name='home' isFocused={focused}/>),tabBarActiveTintColor:'green'}}/> 
-            <MainTab.Screen name={Routes.Profile} component={Profile} options={{tabBarIcon:({focused}) => (<TabBarIcon name='settings' isFocused={focused}/>),tabBarActiveTintColor:'green'}}/>
-            {/* <Stack.Screen name={'Drawer'} component={MainMenuNavigation} /> */}
-        </MainTab.Navigator>
+        // <MainTab.Navigator screenOptions={{
+        //     headerShown:false,
+        //     tabBarStyle:
+        //     {
+        //         zIndex:1,
+        //         elevation:1,
+        //     },
+        // }}>
+        //     <MainTab.Screen name={Routes.Home} component={Home} options={{tabBarIcon:({focused}) => (<TabBarIcon name='home' isFocused={focused}/>),tabBarActiveTintColor:'green'}}/> 
+        //     <MainTab.Screen name={Routes.Profile} component={Profile} options={{tabBarIcon:({focused}) => (<TabBarIcon name='settings' isFocused={focused}/>),tabBarActiveTintColor:'green'}}/>
+        //     {/* <Stack.Screen name={'Drawer'} component={MainMenuNavigation} /> */}
+        // </MainTab.Navigator>
+        <Drawer.Navigator screenOptions={{headerShown:false, 
+                                        drawerType:'front',
+                                        swipeEnabled:false,
+                                        drawerPosition:'right',
+                                        drawerStatusBarAnimation:'slide',
+                                        drawerStyle:{width:'60%',
+                                                    borderRadius:0},
+                                        drawerContentContainerStyle:{
+                                            borderRadius:0},
+                                        drawerLabelStyle:{textAlign:'center'}}}>
+            <Drawer.Screen name={Routes.Home} component={Home}/>
+            <Drawer.Screen name={Routes.Profile} component={Profile}/>
+        </Drawer.Navigator>
     );
 };
 

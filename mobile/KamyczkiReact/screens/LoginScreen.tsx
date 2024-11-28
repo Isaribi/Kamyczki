@@ -34,7 +34,7 @@ export default function LoginScreen({navigation}:any) {
 
   return (
     <SafeAreaView style={[globalStyle.backgroundScreen, globalStyle.flex]}>
-        <ScrollView ref={scrollViewRef} showsVerticalScrollIndicator={false}>
+        <ScrollView keyboardShouldPersistTaps='handled' ref={scrollViewRef} showsVerticalScrollIndicator={false}>
           <View style={style.pageName}>
             <Title title={'Zaloguj się'} style={globalStyle.textColor}/>
           </View>
@@ -51,7 +51,7 @@ export default function LoginScreen({navigation}:any) {
                 <View style={{marginBottom:2}}>
                   <Input onFocusScroll={handleScrollToInput} inputBackgroundColor={globalStyle.inputBackground.backgroundColor} isPassword={true} onChangeText={(value) => setPassword(value)} placeHolder={'Wpisz hasło...'} label={'Hasło'}/>
                 </View>
-                <Pressable style={{marginBottom:6,marginLeft:3}} onPress={() => navigation.navigate(Routes.Register)}>
+                <Pressable style={{marginBottom:6,marginLeft:3}} onPress={() => navigation.push(Routes.PasswordRecovery)}>
                       <Text style={{color:'#5a8ed1', fontSize:16, lineHeight:16}}>Nie pamiętasz hasła?</Text>
                 </Pressable>
               </View>

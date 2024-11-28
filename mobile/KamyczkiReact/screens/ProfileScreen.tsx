@@ -27,7 +27,7 @@ const Profile = ({navigation}:any) => {
         </View>
         <Text style={style.profileName}>Masny Ben</Text>
         <Text style={style.karmaText}>Karma: 50</Text>
-        <Button title='WYLOGUJ' onPress={logout}/>
+        <Button title='WYLOGUJ' onPress={() => navigation.openDrawer()}/>
         <View style={style.statContainer}>
           <View>
             <Text style={style.statAmount}>51</Text>
