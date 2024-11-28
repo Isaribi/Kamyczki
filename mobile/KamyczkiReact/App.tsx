@@ -6,13 +6,11 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { BackHandler } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-
 const queryClient = new QueryClient();
 
-const App = () => 
-{
+const App = () => {
   useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => true)
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => true);
     return () => backHandler.remove();
   }, []);
 
@@ -23,18 +21,19 @@ const App = () =>
   );
 };
 
-export const Layout = () =>
-{
+export const Layout = () => {
   const { authState } = useAuth();
-  return(
+  return (
     <NavigationContainer>
-      {authState?.isAuthenticated ? 
+      {authState?.isAuthenticated ? (
         <QueryClientProvider client={queryClient}>
-          <MainNavigation/>
-        </QueryClientProvider>  : 
-        <AuthNavigation/>}
+          <MainNavigation />
+        </QueryClientProvider>
+      ) : (
+        <AuthNavigation />
+      )}
       {/* <MainNavigation /> */}
     </NavigationContainer>
-    )
+  );
 };
 export default App;

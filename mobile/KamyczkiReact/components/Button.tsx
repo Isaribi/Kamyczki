@@ -2,24 +2,20 @@ import { Pressable, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } fr
 import { globalStyle } from '../assets/styles/globalStyles';
 
 interface ButtonProps {
-    onPress: () => void;
-    text: string;
-    style?: StyleProp<ViewStyle>;
-    textStyle?: StyleProp<TextStyle>;
+  onPress: () => void;
+  text: string;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
 }
 
 const Button: React.FC<ButtonProps> = ({ onPress, text, style, textStyle }) => {
-    return (
-        <Pressable
-            onPress={onPress}
-            style={({ pressed }) => [
-                styles.container,
-                style,
-                pressed && {opacity:0.85},
-            ]}>
-            <Text style={[styles.text, textStyle]}>{text}</Text>
-        </Pressable>
-    );
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.container, style, pressed && { opacity: 0.85 }]}>
+      <Text style={[styles.text, textStyle]}>{text}</Text>
+    </Pressable>
+  );
 };
 
 const styles = StyleSheet.create({
@@ -29,7 +25,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 100,
     marginVertical: 10,
-    width:'100%',
+    width: '100%',
   },
   text: {
     fontSize: 16,
